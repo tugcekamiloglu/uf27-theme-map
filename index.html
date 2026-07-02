@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UF27 Istanbul — Theme Map</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --pink:   #ffa5b4;
+      --yellow: #fff265;
+      --teal:   #a4c7ca;
+      --navy:   #1d364a;
+      --white:  #FFFFFF;
+      --font:   'Poppins', system-ui, sans-serif;
+      --tick-h: 44px;
+    }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: var(--teal); font-family: var(--font); }
+    svg { width: 100%; height: 100%; display: block; }
+    .node { cursor: grab; }
+    .node:active { cursor: grabbing; }
+
+    /* ── HERO TITLE (top-left, like screenshot) ── */
+    #hero {
+      position: fixed; top: 0; left: 0; z-index: 30;
+      pointer-events: none;
+    }
+    #hero-box {
+      display: inline-flex; align-items: center;
+      background: var(--navy);
+      padding: 13px 28px 11px 20px;
+    }
+    #hero-box span {
+      font-size: clamp(22px, 2.8vw, 42px);
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    /* ── ZOOM CONTROLS ── */
+    #zoom-wrap {
+      position: fixed;
+      bottom: calc(var(--tick-h) + 28px);
+      right: 20px;
+      display: flex; flex-direction: column; gap: 4px;
+      z-index: 20;
+    }
+    .zbtn {
+      width: 34px; height: 34px;
+      border: none;
+      background: rgba(29,54,74,.18);
+      color: var(--navy);
+      font-size: 18px; font-weight: 700;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 0;
+      transition: background .12s;
+      font-family: var(--font);
+    }
+    .zbtn:hover { background: rgba(29,54,74,.38); }
+    .zbtn.reset { font-size: 9px; letter-spacing: .08em; }
+
+    /* ── LOGOS ── */
+    #logos {
+      position: fixed;
+      bottom: calc(var(--tick-h) + 28px);
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex; align-items: center; gap: 18px;
+      z-index: 20; pointer-events: none;
+    }
+    #logos img { height: 28px; width: auto; }
+    .lsep { width: 1px; height: 14px; background: rgba(29,54,74,.35); }
+    .luf  { font-size: 10px; font-weight: 700; color: var(--navy); letter-spacing: .2em; text-transform: uppercase; }
+
+    /* ── TICKER (yellow) ── */
+    #ticker {
+      position: fixed; bottom: 16px; left: 16px; right: 16px;
+      height: var(--tick-h);
+      background: var(--yellow);
+      overflow: hidden; z-index: 25;
+      display: flex; align-items: center;
+    }
+    #tick-track {
+      display: flex; align-items: center; white-space: nowrap;
+      animation: marquee 38s linear infinite;
+    }
+    .tt  { font-size: 16px; font-weight: 700; color: var(--navy); letter-spacing: .1em; text-transform: uppercase; padding: 0 24px; }
+    .sep { color: var(--pink); font-size: 19px; padding: 0 4px; }
+    @keyframes marquee { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+
+    /* ── POPUP ── */
+    #popup {
+      position: fixed; top: 0; right: -380px; width: 348px; height: 100%;
+      background: var(--white); z-index: 100;
+      transition: right .3s cubic-bezier(.4,0,.2,1);
+      overflow-y: auto; display: flex; flex-direction: column;
+      box-shadow: -6px 0 40px rgba(29,54,74,.18);
+    }
+    #popup.open { right: 0; }
+
+    .pp-top {
+      padding: 44px 26px 30px 26px;
+      position: relative; flex-shrink: 0;
+      transition: background .2s;
+    }
+    .pp-close {
+      position: absolute; top: 14px; right: 14px;
+      width: 32px; height: 32px; border: none;
+      background: rgba(29,54,74,.12); color: var(--navy);
+      font-size: 20px; cursor: pointer; border-radius: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font); transition: background .12s;
+    }
+    .pp-close:hover { background: rgba(29,54,74,.25); }
+    .pp-emoji { font-size: 46px; line-height: 1; margin-bottom: 16px; display: block; }
+    .pp-badge {
+      display: inline-block;
+      font-size: 8px; font-weight: 800; letter-spacing: .26em; text-transform: uppercase;
+      padding: 4px 10px; margin-bottom: 12px;
+      font-family: var(--font);
+    }
+    .pp-title {
+      font-size: 24px; font-weight: 900; line-height: 1.15;
+      font-family: var(--font);
+    }
+
+    .pp-body { padding: 26px; flex: 1; }
+    .pp-rule { border: none; border-top: 2px solid rgba(29,54,74,.08); margin: 0 0 22px; }
+    .pp-desc { font-size: 13.5px; line-height: 1.78; color: #3a3a3a; margin-bottom: 28px; }
+
+    .pp-sec {
+      font-size: 8px; font-weight: 800; letter-spacing: .24em; text-transform: uppercase;
+      color: var(--navy); margin-bottom: 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .pp-sec::after { content:""; flex:1; height:2px; background:var(--yellow); }
+    .pp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    .chip {
+      padding: 6px 12px; font-size: 11px; font-weight: 700; letter-spacing: .04em;
+      cursor: pointer; border: none; font-family: var(--font);
+      transition: transform .1s, opacity .1s;
+    }
+    .chip:hover { opacity: .78; transform: translateY(-1px); }
+
+.ch-c  { background: var(--navy);   color: white; }
+    .ch-th { background: var(--yellow); color: var(--navy); }
+    .ch-su { background: var(--teal);   color: var(--navy); }
+    .ch-ss { background: var(--white);  color: var(--navy); outline: 2px solid var(--teal); }
+    .ch-ta { background: var(--pink);   color: var(--navy); }
+
+  </style>
+</head>
+<body>
+
+<div id="hero">
+  <div id="hero-box"><span>3 Themes for UF27</span></div>
+</div>
+
+<div id="zoom-wrap">
+  <button class="zbtn" id="zi">+</button>
+  <button class="zbtn" id="zo">−</button>
+  <button class="zbtn reset" id="zr">FIT</button>
+  <button class="zbtn reset" id="swap" title="Renk değiştir">⇄</button>
+</div>
+
+<div id="logos">
+  <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzNDUuMDA2IiBoZWlnaHQ9IjczLjQ3NCIgdmlld0JveD0iMCAwIDM0NS4wMDYgNzMuNDc0Ij4KICA8ZyBpZD0iR3J1cHBlXzEiIGRhdGEtbmFtZT0iR3J1cHBlIDEiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDU5Ny42OTEgNjQuNTE4KSI+CiAgICA8cGF0aCBpZD0iUGZhZF8xIiBkYXRhLW5hbWU9IlBmYWQgMSIgZD0iTS01MDktMTYuMjU1YTQuNzIzLDQuNzIzLDAsMCwwLDEuNDI5LTMuNjEzdi03LjI3OGE0LjcsNC43LDAsMCwwLTEuNDE3LTMuNiw1LjUwNSw1LjUwNSwwLDAsMC0zLjkyNS0xLjMzMyw1LjI1NCw1LjI1NCwwLDAsMC00LjQ0OCwxLjgxMiw3Ljc1Niw3Ljc1NiwwLDAsMC0xLjM5Miw0Ljg0N3YzLjg0OGE3Ljc1Niw3Ljc1NiwwLDAsMCwxLjM5Miw0Ljg0Nyw1LjI1NCw1LjI1NCwwLDAsMCw0LjQ0OCwxLjgxMkE1LjQ4Miw1LjQ4MiwwLDAsMC01MDktMTYuMjU1bTI2LjItLjM2NWE2LjMxOSw2LjMxOSwwLDAsMCwxLjQtNC4xNDR2LTEuMDA5bC03LjYyOS42NmExLjQ5NCwxLjQ5NCwwLDAsMC0xLjQ0MiwxLjY3NXYyLjIxNGExLjg2MywxLjg2MywwLDAsMCwxLjA3LDEuNzM3LDUuNzY2LDUuNzY2LDAsMCwwLDIuNzU3LjU3N0E0LjcsNC43LDAsMCwwLTQ4Mi44LTE2LjYybTE4MC44MzMtOS43NThoMTAuMTg5di0uOTEzYTQuNDc5LDQuNDc5LDAsMCwwLTEuNDQ1LTMuNDUzLDUuMiw1LjIsMCwwLDAtMy42NjMtMS4zMzMsNS4xNTMsNS4xNTMsMCwwLDAtMy42MzUsMS4zMzMsNC40NzMsNC40NzMsMCwwLDAtMS40NDcsMy40NTNabTI5LjAxOSwxNS43NmgtNy4zOHYtNy4yNzVoNy4zOFptLTEyLjMxOS0xMC44NTRoLTE2Ljd2MS43YTQuNCw0LjQsMCwwLDAsMS41MzQsMy41OSw1LjQ5Myw1LjQ5MywwLDAsMCwzLjYyNCwxLjI2OSw1LjE5NCw1LjE5NCwwLDAsMCwzLjQxMi0xLjA4NCw0LjUxMyw0LjUxMywwLDAsMCwxLjU3LTMuMDZoNi4zNmE5LjkxOSw5LjkxOSwwLDAsMS0zLjY0NCw2LjY3M0ExMi4xOSwxMi4xOSwwLDAsMS0yOTYuODg3LTEwYTExLjgsMTEuOCwwLDAsMS00LjkyNy0uOTg2LDEwLjM2NCwxMC4zNjQsMCwwLDEtMy42NzQtMi43NjQsMTIuMzQsMTIuMzQsMCwwLDEtMi4zLTQuMjY3LDE4LjExMiwxOC4xMTIsMCwwLDEtLjc5NC01LjUyNSwxNi45ODksMTYuOTg5LDAsMCwxLC44NDQtNS41MTEsMTIuNTgyLDEyLjU4MiwwLDAsMSwyLjM3MS00LjI0MiwxMC40MTksMTAuNDE5LDAsMCwxLDMuNjg2LTIuNzI1LDExLjY0LDExLjY0LDAsMCwxLDQuNzktLjk2MywxMS44NTUsMTEuODU1LDAsMCwxLDQuNzg4LjkzOCwxMC45NTMsMTAuOTUzLDAsMCwxLDMuNjgzLDIuNTc2LDExLjE1MywxMS4xNTMsMCwwLDEsMi4zMzcsMy45MDksMTQuNTM2LDE0LjUzNiwwLDAsMSwuODEsNC45MDlabS0yNS45NTktOS45NjRoLTguMTI2djIwLjgxN2gtNi4zNjJWLTM2LjM2OWgxNC40ODlabS0yMS4xNDYsMjAuODE3aC02LjM2di0zLjc0OWE4LjQxOCw4LjQxOCwwLDAsMS0zLjAzMSwzLjI0M0E4LjgyMyw4LjgyMywwLDAsMS0zNDYuMzg3LTEwcS00LjE3MywwLTYuMjYyLTIuNWExMC42MiwxMC42MiwwLDAsMS0yLjA4Ni02Ljk5MlYtMzYuMzY5aDYuMzZ2MTYuNGE2LjA2OCw2LjA2OCwwLDAsMCwuODk1LDMuNTM3LDMuNjIxLDMuNjIxLDAsMCwwLDMuMTgxLDEuMjcxLDUuMDc2LDUuMDc2LDAsMCwwLDQuMDc2LTEuNzUsNi44LDYuOCwwLDAsMCwxLjQ5LTQuNTY0di0xNC45aDYuMzZabS0yNi43NjksMGgtMTIuODIxVi0zMS40ODVoLTUuMTQ0di00Ljg4NGg1LjE0NHYtOC42MDhoNi4zNnY4LjYwOGg2LjQ2MXY0Ljg4NEgtMzY1LjZ2MTUuOTU5aDYuNDYxWm0tMjIuMTc3LDBoLTYuMzYydi0zLjc0OWE4LjQxOSw4LjQxOSwwLDAsMS0zLjAzMSwzLjI0M0E4LjgwOSw4LjgwOSwwLDAsMS0zOTUuMzMzLTEwcS00LjE3NiwwLTYuMjYyLTIuNWExMC42MDgsMTAuNjA4LDAsMCwxLTIuMDg4LTYuOTkyVi0zNi4zNjloNi4zNjJ2MTYuNGE2LjA1MSw2LjA1MSwwLDAsMCwuODk1LDMuNTM3LDMuNjE3LDMuNjE3LDAsMCwwLDMuMTc5LDEuMjcxLDUuMDczLDUuMDczLDAsMCwwLDQuMDc2LTEuNzUsNi43OTIsNi43OTIsMCwwLDAsMS40OS00LjU2NHYtMTQuOWg2LjM2MlpNLTQwNy42LTM5LjRoLTE1LjQ4MnY4LjQzNWgxNC4yNjN2NS41NWgtMTQuMjYzdjE0LjhoLTYuNjA5Vi00NC45NzdoMjIuMDlabS0zNi45MjIsMjguNzg0aC02LjM2MlYtMjcuMDQ0YTUuNjY5LDUuNjY5LDAsMCwwLS45NjgtMy41MjgsMy44NjUsMy44NjUsMCwwLDAtMy4yNTYtMS4yNTcsNS4xMDgsNS4xMDgsMCwwLDAtNC4xMTIsMS43MzksNi44Miw2LjgyLDAsMCwwLTEuNDc5LDQuNTc2djE0LjloLTYuMzZWLTM2LjM2OWg2LjM2djMuNzI0YTguNTg3LDguNTg3LDAsMCwxLDMuMDQ0LTMuMjA2LDguODIsOC44MiwwLDAsMSw0LjYzNS0xLjEzNHE0LjM3MSwwLDYuNDM1LDIuNTI5YTEwLjcxMiwxMC43MTIsMCwwLDEsMi4wNjMsNi45NjdabS0yNi4yNDQsMGgtMTAuMDE0bC0uMDUtNGgtLjIyNGE5LjA1OSw5LjA1OSwwLDAsMS0yLjk2OSwzLjM2NkE4LjU1Nyw4LjU1NywwLDAsMS00ODguODgtMTBhOC43MjIsOC43MjIsMCwwLDEtMy4yNjgtLjU5Myw4LjA0NCw4LjA0NCwwLDAsMS0yLjU5NS0xLjY1Miw3LjM0NSw3LjM0NSwwLDAsMS0xLjcyOC0yLjQ5LDguMTA3LDguMTA3LDAsMCwxLS42MDktMy4yMDYsNy41MDcsNy41MDcsMCwwLDEsMi4xODYtNS40LDkuNjM0LDkuNjM0LDAsMCwxLDYuMzEyLTIuNjRsNy4xODItLjU5M3YtMS42NzdhMy41ODQsMy41ODQsMCwwLDAtMS4wOTMtMi45MjMsNC41NTcsNC41NTcsMCwwLDAtMi45ODMtLjksNS4wODMsNS4wODMsMCwwLDAtMy4xNTYuOTI0LDMuMTgyLDMuMTgyLDAsMCwwLTEuMjE2LDIuN2gtNi4zNjJhOC4wNDEsOC4wNDEsMCwwLDEsLjkyLTMuNzEzLDguMDM1LDguMDM1LDAsMCwxLDIuMzEyLTIuNjUyLDEwLjUsMTAuNSwwLDAsMSwzLjQyOC0xLjYxNiwxNi4wNDgsMTYuMDQ4LDAsMCwxLDQuMzI1LS41NTUsMTEuMjEzLDExLjIxMywwLDAsMSw3LjM4LDIuMjQ2LDguMDU4LDguMDU4LDAsMCwxLDIuNzA5LDYuNTg0djEyLjYyOWg0LjM3MlptLTMwLjItMTIuODc1YTIxLjc1MiwyMS43NTIsMCwwLDEtLjYwOSw1LjI3OCwxMi44MzEsMTIuODMxLDAsMCwxLTEuODc2LDQuMjY3LDkuMjcsOS4yNywwLDAsMS0zLjIsMi44ODVBOS4yNzcsOS4yNzcsMCwwLDEtNTExLjE3OC0xMGE4LjgyOSw4LjgyOSwwLDAsMS00LjQ3My0xLjA4Niw4Ljg3Myw4Ljg3MywwLDAsMS0zLjEwNi0zLjAwOHYzLjQ3OGgtNi4zNjJWLTQ0Ljk3N2g2LjM2MnYxMi4wODZhOC45LDguOSwwLDAsMSwzLjA5NC0zLjAwOCw4LjgwNiw4LjgwNiwwLDAsMSw0LjQ4NC0xLjA4Niw5LjI3Nyw5LjI3NywwLDAsMSw0LjUyMywxLjA2MSw5LjMwNSw5LjMwNSwwLDAsMSwzLjIsMi44NzMsMTIuNjYyLDEyLjY2MiwwLDAsMSwxLjg3Niw0LjI5MywyMS45OTEsMjEuOTkxLDAsMCwxLC42MDksNS4yNjVtLTI4LjI0OC03Ljk0MmgtOC4xMjR2MjAuODE3SC01NDMuN1YtMzYuMzY5aDE0LjQ4N1ptLTIxLjIsOC41ODNhMTQuNjg1LDE0LjY4NSwwLDAsMS0uOTQsNS4zOSwxMS40LDExLjQsMCwwLDEtMi42ODYsNC4wOTQsMTEuOTIyLDExLjkyMiwwLDAsMS00LjIzMywyLjYsMTYuMzE2LDE2LjMxNiwwLDAsMS01LjYzMi45MTMsMTYuMzI0LDE2LjMyNCwwLDAsMS01LjY0MS0uOTEzLDEyLjI0OCwxMi4yNDgsMCwwLDEtNC4yNDktMi41NzksMTAuOTMxLDEwLjkzMSwwLDAsMS0yLjctNC4wNjksMTQuOTY3LDE0Ljk2NywwLDAsMS0uOTMxLTUuNDM4Vi00NC45NzdoNi42MDl2MjIuNGE3LjU0LDcuNTQsMCwwLDAsMS43MjcsNS4yNDIsNi42MzcsNi42MzcsMCwwLDAsNS4xODMsMS45MSw2Ljc4Miw2Ljc4MiwwLDAsMCw1LjI0Mi0xLjg4Nyw3LjQ3NSw3LjQ3NSwwLDAsMCwxLjczOS01LjI2NXYtMjIuNGg2LjUxMVptMjk3LjczLTQxLjY2NkgtNTk3LjY5MVY4Ljk1NmgzNDUuMDA2WiIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCAwKSIgZmlsbD0iIzFkMzY0YSIvPgogIDwvZz4KPC9zdmc+Cg==" alt="Urban Future" style="height:22px;">
+  <div class="lsep"></div>
+  <img src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+IDxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgaWQ9IkViZW5lXzEiIHdpZHRoPSIyODMuNDY0OTk2MzM3ODkwNiIgaGVpZ2h0PSI3Ni41MzU0MDAzOTA2MjUiIHZlcnNpb249IjEuMSIgdmlld0JveD0iMCAwIDI4My40NjUgNzYuNTM1NCI+PGRlZnM+PHN0eWxlPiAuc3QwIHsgZmlsbDogbm9uZTsgfSAuc3QxIHsgY2xpcC1wYXRoOiB1cmwoI2NsaXBwYXRoLTEpOyB9IC5zdDIgeyBjbGlwLXBhdGg6IHVybCgjY2xpcHBhdGgtMyk7IH0gLnN0MyB7IGNsaXAtcGF0aDogdXJsKCNjbGlwcGF0aC00KTsgfSAuc3Q0IHsgY2xpcC1wYXRoOiB1cmwoI2NsaXBwYXRoLTIpOyB9IC5zdDUgeyBmaWxsOiAjMWQzNjRhOyB9IC5zdDYgeyBjbGlwLXBhdGg6IHVybCgjY2xpcHBhdGgpOyB9IDwvc3R5bGU+PGNsaXBQYXRoIGlkPSJjbGlwcGF0aCI+PHJlY3QgY2xhc3M9InN0MCIgd2lkdGg9IjI4My40NjUiIGhlaWdodD0iNzYuNTM1NCI+PC9yZWN0PjwvY2xpcFBhdGg+PGNsaXBQYXRoIGlkPSJjbGlwcGF0aC0xIj48cmVjdCBjbGFzcz0ic3QwIiB5PSIuMDAwNCIgd2lkdGg9IjI4My40NjUiIGhlaWdodD0iNzYuNTM1Ij48L3JlY3Q+PC9jbGlwUGF0aD48Y2xpcFBhdGggaWQ9ImNsaXBwYXRoLTIiPjxyZWN0IGNsYXNzPSJzdDAiIHk9Ii4wMDA0IiB3aWR0aD0iMjgzLjQ2NSIgaGVpZ2h0PSI3Ni41MzUiPjwvcmVjdD48L2NsaXBQYXRoPjxjbGlwUGF0aCBpZD0iY2xpcHBhdGgtMyI+PHJlY3QgY2xhc3M9InN0MCIgeT0iLjAwMDQiIHdpZHRoPSIyODMuNDY1IiBoZWlnaHQ9Ijc2LjUzNSI+PC9yZWN0PjwvY2xpcFBhdGg+PGNsaXBQYXRoIGlkPSJjbGlwcGF0aC00Ij48cmVjdCBjbGFzcz0ic3QwIiB5PSIuMDAwNCIgd2lkdGg9IjI4My40NjUiIGhlaWdodD0iNzYuNTM1Ij48L3JlY3Q+PC9jbGlwUGF0aD48L2RlZnM+PGcgY2xhc3M9InN0NiI+PGcgY2xhc3M9InN0MSI+PHBhdGggY2xhc3M9InN0NSIgZD0iTTE0My4yNzQwOSw1OS4wNzM0di01LjUzaC0zLjY3N3YyMS43ODVoMy44NDgwMXYtMTEuNDM2YzAtNC40NDIsMi4wOTU5OS02Ljc0NSw1LjUxNTk5LTYuNzQ1LjUxNS4wMDIsMS4wMy4wNDQsMS41MzkuMTI2di00LjM1OGMtMy41MDYsMC02LjIsMi4zODgtNy4yMjYsNi4xNTgiPjwvcGF0aD48cGF0aCBjbGFzcz0ic3Q1IiBkPSJNMTYzLjE4Niw3My4wMjU0aDBjLTMuMzc4MDEsMC01Ljc3Mi0yLjIyMi01Ljc3Mi02LjcwNHYtNC4xMDVjMC00LjI3NCwyLjU2NS02LjM2OCw1LjM4NzAxLTYuMzY4LDMuNjc2OTksMCw2LjMyNzk5LDIuODksNi4zMjc5OSw4LjY3MiwwLDUuNjU2LTIuMzUxLDguNTA1LTUuOTQyOTksOC41MDVNMTY0LjI5OCw1Mi45MTY0Yy0zLjIwNywwLTUuODE1LDEuNzYtNi44ODQsNC4zNTZ2LTExLjI2OGgtMy44NDc5OXYyOS4zMjVoMy42Nzc5OXYtMy43NzFjMS4xMTEwMSwyLjU5OCwzLjgwNTAxLDQuMzk5LDYuODgzLDQuMzk5LDUuMDAzMDEsMCw5LjA2NDAxLTQuMzE1LDkuMDY0MDEtMTEuNjg4LDAtNi43ODctMy44OS0xMS4zNTMtOC44OTMwMS0xMS4zNTMiPjwvcGF0aD48cGF0aCBjbGFzcz0ic3Q1IiBkPSJNMTU0LjAxMjEsMzUuNzU1OWgzLjY3NFYxMy45MDk5aC0zLjg0NTk5djEyLjIyNWMwLDQuMzY5LTIuMjIxMDEsNy4wMTYtNS40NjgsNy4wMTYtMy4yNDgsMC01LjA0MjAxLTEuOTMyLTUuMDQyMDEtNS4xNjZ2LTE0LjA3NWgtMy44NDU5OXYxNC43MDRjMCw0LjY2MiwyLjkwNSw3Ljc3Miw3LjA5Myw3Ljc3MmguMDAwOTljMy40NjAwMSwwLDYuMzY2MDEtMi4xNDMsNy40MzQwMS01LjQxOXY0Ljc4OVoiPjwvcGF0aD48cGF0aCBjbGFzcz0ic3Q1IiBkPSJNOTMuNjE0LDU2Ljk5NTFjMCwuMzU2LS4wMjIuNzc5LS4wNDcsMS4xMjgtLjU4OSw3Ljg1OS03LjI3MSwxNC4wNTgtMTUuNDI3LDE0LjA1OHMtMTUuNDc0LTYuNTk3LTE1LjQ3NC0xNC4wNThWLjM2MjFoLTIxLjUxM3YzNy4zNjFoLTE5LjI1M1YuMzYyMUguMzYydjc1LjAxMWgyMS41Mzh2LTM1LjI2aDE5LjI1M3YxNC4zNDFjLS4wMTQsMTUuMzQsMTIuMTU5LDIxLjkwMywyNy4yNzQsMjIuNDEyLDE3LjM1Mi42MSwyNy4yNzM5OS03LjU3OSwyNy4yNzM5OS0yMC4yMDFWLjM5NDFsLTIuMDg3LS4wMzJ2NTYuNjMzWiI+PC9wYXRoPjwvZz48cG9seWdvbiBjbGFzcz0ic3Q1IiBwb2ludHM9IjExMy42NTk2IDIyLjMxMyAxMjkuNDY5NiAyMi4zMTMgMTI5LjQ2OTYgMzUuNzU2IDEzMy41NzE1OSAzNS43NTYgMTMzLjU3MTU5IDYuMzQ4IDEyOS40Njk2IDYuMzQ4IDEyOS40Njk2IDE5LjE2MiAxMTMuNjU5NiAxOS4xNjIgMTEzLjY1OTYgNi4zNDggMTA5LjU1NzYgNi4zNDggMTA5LjU1NzYgMzUuNzU2IDExMy42NTk2IDM1Ljc1NiAxMTMuNjU5NiAyMi4zMTMiPjwvcG9seWdvbj48ZyBjbGFzcz0ic3Q0Ij48cGF0aCBjbGFzcz0ic3Q1IiBkPSJNMjU0LjA0NTIsMTYuMDEwN2gwYzIuOTA1LDAsNC45MTQsMi4xODQsNS4yNTYwMSw2LjA5MmgtMTEuMDI0Yy42NDA5OS00LjAzNCwyLjgxOTk5LTYuMDkyLDUuNzY3OTktNi4wOTJNMjU0LjI1OTIsMzYuMzg1N3YuMDAxYzUuMTI4MDEsMCw4LjY3NC0zLjA2Nyw5Ljc4NDk5LTguNDAyaC0yLjU2Mjk5Yy0uODk4MDEsMy40MDItMy4yOTA5OSw1LjMzNS02LjQ5Niw1LjMzNS00LjE0NCwwLTYuODM2LTIuODU3LTYuODc5LTguNDg2aDE1LjU5NjAxYzAtNy41NjMtNC4xNDQwMS0xMS41NTQtOS41NzEwMS0xMS41NTQtNS40Njg5OSwwLTEwLjA4NCw0Ljc4OS0xMC4wODQsMTEuNjgsMCw2Ljk3Myw0LjM1OTAxLDExLjQyNiwxMC4yMTIwMSwxMS40MjYiPjwvcGF0aD48cGF0aCBjbGFzcz0ic3Q1IiBkPSJNMTMwLjUxMjgsNjQuMTg0NmMwLDQuNzc2LTMuMzc4LDguMzM3LTguMzgxLDguMzM3LTUuMzAyLDAtOC42ODAwMS0zLjM5My04LjY4MDAxLTkuMDA3di0xNy41MTFoLTQuMTA1djE4LjE4MmMwLDcuMDgsNS4wODksMTEuODU2LDEyLjE4NiwxMS44NTZ2LS4wMDFjNy4xNDA5OSwwLDEyLjM5OTk5LTUuMTExLDEyLjM5OTk5LTExLjczdi0xOC4zMDhoLTMuNDJ2MTguMTgyWiI+PC9wYXRoPjxwYXRoIGNsYXNzPSJzdDUiIGQ9Ik0yMTIuMDM5NCwyNy4yMjhjMCwzLjU3MS0yLjQ3NzAxLDYuMDkyLTUuOTM5LDYuMDkyLTIuMzA3MDEsMC0zLjY3NDAxLTEuMzAzLTMuNjc0MDEtMy4wMjUsMC0xLjY4MSwxLjExMTAxLTIuOTQxLDQuMTQ1LTMuODIzLDIuODIwMDEtLjg0MSw0LjUyOC0xLjg0OSw1LjQ2OC0zLjE5NHYzLjk1Wk0yMTUuODg2NCwzMS4xMzR2LTEwLjUwM2MwLTQuNDEtMy4yMDUtNy4zNTEtNy45NDcwMS03LjM1MS00LjkxNDk5LDAtOC41MDQsMy4wMjUtOS4xMDE5OSw3Ljk4MmgyLjU2NGMuNTU0OTktMy4xOTMsMi43MzM5OS00LjkxNSw1LjY0LTQuOTE1LDIuOTkxLDAsNC43NDIsMS43NjUsNC43NDIsMy42OTdzLS45ODIwMSwyLjg5OS02LjQwOCw0LjE1OWMtNS4wODYsMS4yMTgtNi45NjUsMy4yMzQtNi45NjUsNi41MTEsMCwzLjE5MywyLjUyMSw1LjYzLDYuMzI0MDEsNS42M2guMDAwOTljMy41NDYwMSwwLDYuMTk1MDEtMS43NjUsNy4zMDYtNC43MDYsMCwyLjYwNSwxLjQ1Miw0LjQ1NCw0LjIzLDQuNDU0LjgxMjAxLDAsMS41ODEwMS0uMTI3LDIuMDUxMDEtLjMzN3YtMi4xYy0xLjc1Mi0uMDg0LTIuNDM2LS43OTgtMi40MzYtMi41MjEiPjwvcGF0aD48cGF0aCBjbGFzcz0ic3Q1IiBkPSJNMjQyLjA0MTExLDYyLjc2MTVsLTMuMDc4LS43MTJjLTIuNzM3LS42MjktMy41OTItMS44NDQtMy41OTItMy4yMjYsMC0xLjgwMSwxLjUzOS0zLjA1OSwzLjkzNDAxLTMuMDU5LDIuOTkzLDAsNS4xMzEsMS41NTEsNS44MTQ5OSw0LjA2NGgyLjU2NjAxYy0uNjg0MDEtNC4zMTUtMy44MDYtNi45MTItOC40NjYtNi45MTItNC40NDYsMC03LjY1MywyLjgwNy03LjY1Myw2LjQ5MywwLDMuMTg1LDEuODM3MDEsNS4zNjMsNS44NTY5OSw2LjM2OWwzLjEyMS43OTVjMy4xNjQuNzk2LDQuMTA1LDEuODAyLDQuMTA1LDMuMjI2LDAsMS44NDMtMS44ODEsMy4xODQtNC42NjEsMy4xODQtMy41OTEsMC02LjAyOC0xLjU5Mi02Ljg0LTQuNTY3aC0yLjU2NjAxYy44MTIwMSw0LjkwMiw0LjA2MjAxLDcuNTQxLDkuNjIwMDEsNy41NDFsLS4wMDEwMS4wMDFjNC43NDYsMCw4LjM4MS0yLjkzMyw4LjM4MS02Ljc0NSwwLTMuMjY5LTEuNzk1OTktNS4zNjMtNi41NDE5OS02LjQ1MiI+PC9wYXRoPjxwYXRoIGNsYXNzPSJzdDUiIGQ9Ik0yMzYuMTcxOCwyMS42ODMydjE0LjA3M2gzLjg0NTk5di0xNC43MDRjMC00LjY2Mi0yLjk0OC03Ljc3Mi03LjE3Nzk5LTcuNzcyLTMuNTA0LDAtNi40NTIsMi4xODUtNy41Miw1LjQxOXYtNC43ODloLTMuNjc0djIxLjg0NmgzLjg0Mzk5di0xMi4yMjVjMC00LjM2OSwyLjI2NS03LjAxNiw1LjU1NTAxLTcuMDE2czUuMTI3LDEuOTMzLDUuMTI3LDUuMTY4Ij48L3BhdGg+PC9nPjxyZWN0IGNsYXNzPSJzdDUiIHg9IjIyMi44ODMiIHk9IjQ2LjAwNDQiIHdpZHRoPSI0LjAxOSIgaGVpZ2h0PSIzLjkzOCI+PC9yZWN0PjxnIGNsYXNzPSJzdDIiPjxwYXRoIGNsYXNzPSJzdDUiIGQ9Ik0yNzcuMDcxMjksNTIuOTE2NGMtMy4zNzc5OSwwLTYuMTk5MDEsMi4yMi03LjE0MDAxLDUuNTMtLjc2OTk5LTMuMzkzLTMuMjQ4OTktNS41My02LjU0MTk5LTUuNTMtMy4zMzQ5OSwwLTYuMDcxOTksMi4xMzYtNy4wOTc5OSw1LjM2MnYtNC43MzRoLTMuNjc3djIxLjc4NWwuMDAxMDEuMDAxaDMuODQ3OTl2LTEyLjE5MWMwLTQuMzU3LDIuMDk1LTYuOTk2LDUuMTMxMDEtNi45OTYsMi45OTIsMCw0LjcwMywxLjkyNyw0LjcwMyw1LjE1M3YxNC4wMzRoMy44NDY5OHYtMTIuMTkxYzAtNC4zNTgsMi4wOTYwMS02Ljk5Nyw1LjEzMTAxLTYuOTk3LDIuOTkyOTgsMCw0LjcwMywxLjkyNyw0LjcwMyw1LjE1M3YxNC4wMzRoMy44NDl2LTE0LjY2M2MwLTQuNjUtMi43OC03Ljc1LTYuNzU2MDEtNy43NSI+PC9wYXRoPjxwYXRoIGNsYXNzPSJzdDUiIGQ9Ik0xNzYuODQxLDM1Ljc1NjdoMy44NDU5OXYtMTIuMjI1YzAtNC4zNjksMi4wOTQwMS03LjAxNiw1LjEyODAxLTcuMDE2LDIuOTkwMDEsMCw0LjY5OTAxLDEuOTMyLDQuNjk5MDEsNS4xNjh2MTQuMDczaDMuODQ1OTl2LTE0LjcwNGMwLTQuNjYzLTIuNzc2OTktNy43NzItNi43NTA5OS03Ljc3Mi0zLjM3NjAxLDAtNi4xOTYsMi4yMjctNy4xMzYsNS41NDYtLjc2OS0zLjQwNC0zLjI0NzAxLTUuNTQ2LTYuNTM3LTUuNTQ2LTMuMzMzMDEsMC02LjA2NywyLjE0Mi03LjA5Myw1LjM3N3YtNC43NDdoLTMuNjc1djIxLjg0NWwtLjAwMDk5LjAwMWgzLjg0NTk5di0xMi4yMjVjMC00LjM2OSwyLjA5NS03LjAxNiw1LjEyODAxLTcuMDE2LDIuOTkxLDAsNC43LDEuOTMyLDQuNyw1LjE2OHYxNC4wNzNaIj48L3BhdGg+PHBhdGggY2xhc3M9InN0NSIgZD0iTTE4OS42NTIzLDY2LjgyNTNjMCwzLjU2MS0yLjQ3ODk5LDYuMDc1LTUuOTQyOTksNi4wNzUtMi4zMDkwMSwwLTMuNjc3LTEuMjk5LTMuNjc3LTMuMDE3LDAtMS42NzYsMS4xMTEwMS0yLjkzMyw0LjE0Ny0zLjgxMywyLjgyMjAxLS44MzgsNC41MzItMS44NDIsNS40NzI5OS0zLjE4M3YzLjkzOFpNMTkzLjUwMDMxLDcwLjcyMTN2LTEwLjQ3M2MwLTQuMzk5LTMuMjA3LTcuMzMyLTcuOTUyLTcuMzMyLTQuOTE4LDAtOC41MTAwMSwzLjAxNi05LjEwOCw3Ljk2aDIuNTY1OTljLjU1NTAxLTMuMTg0LDIuNzM2MDEtNC45MDIsNS42NDQtNC45MDIsMi45OTIsMCw0Ljc0NTAxLDEuNzU5LDQuNzQ1MDEsMy42ODZzLS45ODMsMi44OTEtNi40MTMwMSw0LjE0OGMtNS4wODg5OSwxLjIxNS02Ljk3LDMuMjI2LTYuOTcsNi40OTMsMCwzLjE4NSwyLjUyMzAxLDUuNjE1LDYuMzI5MDEsNS42MTUsMy41NDgsMCw2LjE5ODk5LTEuNzU5LDcuMzEwOTktNC42OTIsMCwyLjU5NywxLjQ1NDAxLDQuNDQxLDQuMjMzLDQuNDQxLjgxMjAxLDAsMS41ODItLjEyNiwyLjA1Mi0uMzM2di0yLjA5NGMtMS43NTItLjA4NS0yLjQzNy0uNzk3LTIuNDM3LTIuNTE0Ij48L3BhdGg+PC9nPjxyZWN0IGNsYXNzPSJzdDUiIHg9IjIyMi45NjgiIHk9IjUzLjU0NDQiIHdpZHRoPSIzLjg0ODAxIiBoZWlnaHQ9IjIxLjc4NiI+PC9yZWN0PjxnIGNsYXNzPSJzdDMiPjxwYXRoIGNsYXNzPSJzdDUiIGQ9Ik0yMTAuNDY1Myw1Mi45MTY0Yy0zLjUwNiwwLTYuNDU1OTksMi4xNzgtNy41MjQ5OSw1LjQwNHYtNC43NzZoLTMuNjc3djIxLjc4NWwzLjg0Nzk5LjAwMXYtMTIuMTkxYzAtNC4zNTgsMi4yNjgwMS02Ljk5Nyw1LjU1OTAxLTYuOTk3czUuMTMsMS45MjcsNS4xMyw1LjE1M3YxNC4wMzRoMy44NDc5OXYtMTQuNjYzYzAtNC42NS0yLjk1LTcuNzUtNy4xODMtNy43NSI+PC9wYXRoPjwvZz48L2c+PC9zdmc+IA==" alt="Humane Urbanism" style="height:22px;">
+  <div class="lsep"></div>
+  <img src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+IDxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgaWQ9IkViZW5lXzEiIHdpZHRoPSIyNTUuMTE3OTk2MjE1ODIwMyIgaGVpZ2h0PSIxNTMuMDcwOTk5MTQ1NTA3OCIgdmVyc2lvbj0iMS4xIiB2aWV3Qm94PSIwIDAgMjU1LjExOCAxNTMuMDcxIj48ZGVmcz48c3R5bGU+IC5zdDAgeyBmaWxsOiBub25lOyB9IC5zdDEgeyBjbGlwLXBhdGg6IHVybCgjY2xpcHBhdGgtMSk7IH0gLnN0MiB7IGNsaXAtcGF0aDogdXJsKCNjbGlwcGF0aC0yKTsgfSAuc3QzIHsgZmlsbDogIzFkMzY0YTsgfSAuc3Q0IHsgY2xpcC1wYXRoOiB1cmwoI2NsaXBwYXRoKTsgfSA8L3N0eWxlPjxjbGlwUGF0aCBpZD0iY2xpcHBhdGgiPjxyZWN0IGNsYXNzPSJzdDAiIHdpZHRoPSIyNTUuMTE4IiBoZWlnaHQ9IjE1My4wNzEiPjwvcmVjdD48L2NsaXBQYXRoPjxjbGlwUGF0aCBpZD0iY2xpcHBhdGgtMSI+PHJlY3QgY2xhc3M9InN0MCIgd2lkdGg9IjI1NS4xMTgiIGhlaWdodD0iMTUzLjA3MSI+PC9yZWN0PjwvY2xpcFBhdGg+PGNsaXBQYXRoIGlkPSJjbGlwcGF0aC0yIj48cmVjdCBjbGFzcz0ic3QwIiB3aWR0aD0iMjU1LjExOCIgaGVpZ2h0PSIxNTMuMDcxIj48L3JlY3Q+PC9jbGlwUGF0aD48L2RlZnM+PGcgY2xhc3M9InN0NCI+PGcgY2xhc3M9InN0MSI+PHBhdGggY2xhc3M9InN0MyIgZD0iTTk5Ljg1MjAxLDI0LjA2NjIxYzIuODgyLDAsNC41MzUtMS40ODksNC41MzUtMy42NzgwMXYtLjA3NTk5YzAtMi40NDgwMS0xLjc2NS0zLjcwOTAxLTQuNjQ3LTMuNzA5MDFoLTUuODg2djcuNDYzMDFoNS45OThaTTI1NS40Njg5OSwzMi4zMzgyVi0uNTEyOGgtNDIuNjEybC0xOC4zODU5OSwyNy41ODgwMXYxMC4zNTNoLTUuOTIwMDF2LTEwLjI0NTk5bC0xMC4zNDI5OS0xNS43MzVoNi45MjQ5OWw2LjQyMywxMC40MjlMMjA2LjIxMS0uNTEyOGgtMzkuODQyOTl2Ny4wMTAwMWgtNS44OTgwMVYtLjUxMjhoLTMwLjUzNzk5djIzLjMxN2wxMC45MTI5OS0xMS4zNTY5OWg3LjE0ODAxbC0xMC45NTcsMTEuMDIyOTksMTEuNDU5OTksMTQuOTU4aC03LjExNDk5bC04LjM0NDAxLTExLjA2NDk5LTMuMTE2LDMuMTE3djcuOTQ4aC01LjkyVi0uNTEyOGgtNTAuNjU1MDF2Ny4wMTAwMWgtNS44OTc5OVYtLjUxMjhoLTExLjUzOHY3LjAxMDAxaC01Ljg5OFYtLjUxMjhILjM2MjAxdjQ3LjgzMTAxaDIzLjQ3OXYtMzAuNjA4aC04LjE4N3YtNS4yNzRoMjIuMjk1djUuMjc0aC04LjE4OHYzMC41OTdoODEuMDE1bC0xMi4yNzYtMTguMTk0aC00LjY0NnY4LjMxNDk5aC01LjkyMVYxMS40NDcyaDEyLjI5OGMzLjQxOCwwLDYuMDc3LjkyNzk5LDcuODQyLDIuNjMyLDEuNDk3MDEsMS40NDQ5OSwyLjMxMiwzLjQ5Mzk5LDIuMzEyLDUuOTQxOTl2LjA3NmMwLDQuMTk1MDEtMi4zNDYsNi44MjctNS43NjQsOC4wNTYwMWwxMy4wOCwxOS4xNjVoNDIuNzI0OTlWMTEuNDQ3Mmg1LjkyMDAxdjM1Ljg3MWg4OS4xMzR2LTkuODkwMDFoLTM3LjEwNTAxVjExLjQ0NzJoMjAuMjk1MDF2NS4wOTFoLTE0LjQyMDAxdjUuMjc0aDEyLjY4OXY1LjA4OTk5aC0xMi42ODl2NS40NTdoMzEuMjE4OTl2LS4wMjFaTTczLjQyNCwyNi4xMDQyYzAsNy44NzMtNC41OCwxMS43MzQtMTEuODA3LDExLjczNC03LjIyNiwwLTExLjY1LTMuODkzLTExLjY1LTExLjU0di0xNC44NTFoNS45MnYxNC43YzAsNC4yMjgsMi4xOSw2LjQxNyw1LjgwOSw2LjQxN3M1LjgwOC0yLjExNCw1LjgwOC02LjIzM3YtMTQuODg0aDUuOTJ2MTQuNjU3WiI+PC9wYXRoPjxwYXRoIGNsYXNzPSJzdDMiIGQ9Ik0xNjYuMjg5NTEsNzYuNjc0NGMyLjg4MiwwLDQuNTM0OTktMS40ODgsNC41MzQ5OS0zLjY3N3YtLjA2NWMwLTIuNDQ4LTEuNzY0OTgtMy43MS00LjY0Njk5LTMuNzFoLTUuODg2djcuNDYzMDFoNS45OTh2LS4wMTFaTTEyOC4zNTc1LDcwLjc0MzRsLTMuNTc1LDguNDIzaDcuMTQ5bC0zLjU3NDAxLTguNDIzWk01OC42NDY1LDcwLjc0MzRsLTMuNTc1LDguNDIzaDcuMTQ5bC0zLjU3NC04LjQyM1pNMjU1LjQ2OTUsOTkuOTI3NHYtNDcuODMxaC01Ni45NjU5OXYzNy45NDFoLTUuOTIwMDF2LTM3Ljk0MUguMzYyNXYxMS45NmgzNy41OTd2NS4yNzRoLTguMTg3djIwLjcxOGgtNS45MjAwMXYtMjAuNzE4SC4zNjI1djMwLjU5N2g3MC4zODFsLTYuNDExOTktMTUuNzE0aC0xMS4zODJsLTIuODQ4LDUuODI0aC02LjAzMmwxMS45MTgtMjYuMTY0aDUuNDYybDE1LjQ3MSwzNi4wNTRoMzMuMjNsMTUuNTU5LTM2LjA1NGg1LjQ2MjAxbDExLjUzOSwyNi4xNjRoLTYuMTg4bC0yLjQ1ODAxLTUuODI0aC0xMS4zOTNsLTYuNTAxLDE1LjcxNGg2MC42NjRsLTExLjg5Ny0xOC4yMDVoLTQuNjQ2djguMzE1aC01Ljkydi0yNS45ODFoMTIuMjk3OTljMy40MTgsMCw2LjA3NjAyLjkyNyw3Ljg0MSwyLjYzMiwxLjQ5NzAxLDEuNDQ1LDIuMzAwOTksMy40OTQsMi4zMDA5OSw1Ljk0MnYuMDc2YzAsNC4xOTUtMi4zNDU5OCw2LjgyNi01Ljc2Myw4LjA1NmwxMi42ODgwMiwxOS4xNjVoMjkuOTY4OTl2LTM1Ljg3MWg2LjM3Nzk5bDcuMDcwMDEsMTAuOTkwMDEsNy4wNzEtMTAuOTkwMDFoNi4zNzgwMXYyNS45ODFoLTUuODg3MDF2LTE2Ljk2NWwtNy41NzMsMTEuMDk4aC0uMTU1OTlsLTcuNDk1MDEtMTAuOTl2MjYuNzM2bDM1Ljk3OC4wMTFaTTEwNC4zMTk1LDgyLjM1ODRjMCw1LjE1Ni00LjA3Nyw4LjA1Ni05Ljg4NSw4LjA1Ni00LjA3NywwLTguMTg4LTEuMzY5LTExLjQxNi00LjE2M2wzLjQ5Ni00LjA0NGMyLjQyNCwxLjkzMSw0Ljk2LDMuMTYsOC4wMzEsMy4xNiwyLjQyNCwwLDMuODg3LS45MjcsMy44ODctMi40NDgwMXYtLjA3NmMwLTEuNDQ1LS45MjYtMi4xODktNS40MTctMy4zLTUuNDE3LTEuMzM3LTguOTI0LTIuNzgyLTguOTI0LTcuOTQ4di0uMDc2YzAtNC43MTMwMSwzLjkyLTcuODMsOS40MTYtNy44MywzLjkyLDAsNy4yNTk5OSwxLjE4Nyw5Ljk5Njk5LDMuMzAxbC0zLjA3Miw0LjMwMjk5Yy0yLjM3OS0xLjU5Ni00LjcyNS0yLjU2Ny02Ljk5Mi0yLjU2Ny0yLjI2ODAxLDAtMy40NjMwMSwxLjAwMzAxLTMuNDYzMDEsMi4yNjUwMXYuMDc1YzAsMS43MDQsMS4xNTEsMi4yNjUsNS44MDgwMSwzLjQxOSw1LjQ2MiwxLjM3LDguNTM0LDMuMjY4LDguNTM0LDcuNzk4di4wNzVaIj48L3BhdGg+PHBhdGggY2xhc3M9InN0MyIgZD0iTTE4Ny4zMjQ2LDEyOS4wNjl2LS4wMjJjMC0xLjA0Ni0uNzM3LTEuNzc5LTEuODQzLTEuNzc5aC0xLjAzOXYzLjU3aDEuMDM5YzEuMTA2LDAsMS44NDMtLjcyMywxLjg0My0xLjc2OSI+PC9wYXRoPjxwYXRoIGNsYXNzPSJzdDMiIGQ9Ik0xOTQuNjM1MywxMzcuMzA4MmMtMS4wODI5OSwwLTEuODMyLjgzLTEuODMyLDEuODQ0di4wMjJjMCwxLjAxNC43NzEsMS44NTUsMS44NTQsMS44NTUsMS4wODQsMCwxLjgzMi0uODMsMS44MzItMS44NTV2LS4wMTFjMC0xLjAxNC0uNzctMS44NTUtMS44NTQtMS44NTUiPjwvcGF0aD48cGF0aCBjbGFzcz0ic3QzIiBkPSJNMjA2LjE5OTcxLDExOC4wMDMzdi0uMDExYzAtLjU1LS40MDE5OS0uODQxLTEuMDYxLS44NDFoLTEuMzQwOTl2MS42OTNoMS4zNzM5OWMuNjQ3OTksMCwxLjAyOC0uMzQ1LDEuMDI4LS44NDEiPjwvcGF0aD48L2c+PHBvbHlnb24gY2xhc3M9InN0MyIgcG9pbnRzPSI1OS4xNzEyIDEzMS43NzU2IDY2LjMyMDIgMTMxLjc3NTYgNjIuNzQ1MiAxMjMuMzUyNiA1OS4xNzEyIDEzMS43NzU2Ij48L3BvbHlnb24+PGcgY2xhc3M9InN0MiI+PHBhdGggY2xhc3M9InN0MyIgZD0iTTIzNi4zMTAyLDE0Mi4xMjkzaC00LjM5di01LjloMS4zNHY0LjcyNGgzLjA1djEuMTc2Wk0yMzAuNzc1MjEsMTMyLjAwMjN2LTUuODk5aDEuMjM5OTlsMi44NywzLjYzNHYtMy42MzRoMS4zMzAwMnY1Ljg5OWgtMS4xNDAwMWwtMi45NTk5OS0zLjc1M3YzLjc1M2gtMS4zNFpNMjMxLjcxMTIsMTE1Ljk3NTNsMS40NjQsMi4zNzMsMS40ODUtMi4zNzNoMS41MzA5OWwtMi4zNDU5OSwzLjU0OXYyLjM1MWgtMS4zNjI5OXYtMi4zMTlsLTIuMzQ2MDEtMy41ODFoMS41NzVaTTIyOC40MDIxOSwxNDIuMTI5M2gtMS4zNDA5OXYtNS45aDEuMzQwOTl2NS45Wk0yMjYuMjcyMiwxMjEuODc1M2gtNC42NTh2LTUuOWg0LjYxMzAxdjEuMTU0aC0zLjI3MzAxdjEuMTk4aDIuODgydjEuMTU0aC0yLjg4MnYxLjI0aDMuMzE4MDF2MS4xNTRaTTIyNS41MDMyLDEzMS4xNjEzYy0uNjI2MDEuNTE4LTEuNDk3MDEuOTM4LTIuNjE0MDEuOTM4LTEuODk4OTksMC0zLjIxNy0xLjI4My0zLjIyOC0zLjA0MXYtLjAyMmMwLTEuNjgyLDEuMzUxMDEtMy4wNTIsMy4yMDYwMS0zLjA1MiwxLjEwNSwwLDEuNzY1LjI4LDIuNDAxLjgwOWwtLjg0OS45ODFjLS40NjkwMS0uMzg4LS44OTMwMS0uNjA0LTEuNTk3LS42MDQtLjk3MiwwLTEuNzU0Ljg0MS0xLjc1NCwxLjg0NXYuMDIxYzAsMS4wNzkuNzcxLDEuODc3LDEuODUzOTksMS44NzcuNDkyLDAsLjkzOTAxLS4xMTksMS4yNzQtLjM1NnYtLjg0MWgtMS4zNTE5OXYtMS4xMjJoMi42NTl2Mi41NjdaTTIyMS41MjExOSwxNDIuMjI2M2MtMS43OTksMC0zLjEzODk5LTEuMzM3LTMuMTI3OTktMy4wNjN2LS4wMTFjMC0xLjY4MiwxLjMwNjk5LTMuMDUyLDMuMTgzOTktMy4wNTIsMS4xNTAwMSwwLDEuODQzLjM3NywyLjQxMi45MTZsLS44Ni45NWMtLjQ2ODk5LS40MS0uOTQ4OTktLjY2OS0xLjU2NC0uNjY5LTEuMDM4MDEsMC0xLjc3NTAxLjgzLTEuNzc1MDEsMS44NDR2LjAyMmMwLDEuMDE0LjcyNjAxLDEuODU1LDEuNzc1MDEsMS44NTUuNzAzOTksMCwxLjEyOS0uMjY5LDEuNjA4OTktLjY5bC44Ni44NDFjLS42MzYuNjQ3LTEuMzI4OTksMS4wNTctMi41MTMsMS4wNTdNMjE1Ljk1MTIsMTIxLjg3NTNsLTEuODk5LTIuNTEzLS43MDM5OS43MTJ2MS44MDFoLTEuMzI5MDF2LTUuOWgxLjM0djIuNTc4bDIuNDgwMDEtMi41NzhoMS42MmwtMi40OTEsMi41MDIsMi42MDE5OSwzLjM5OGgtMS42MTg5OVpNMjEzLjE4MzIsMTI2LjEwMzNoMS4zNHY1LjloLTEuMzR2LTUuOVpNMjE1LjE4ODIsMTQyLjEyOTNoLTEuMTRsLTIuOTYwMDEtMy43NTN2My43NTNoLTEuMzR2LTUuOWgxLjIzOTk5bDIuODcwMDEsMy42MzV2LTMuNjM1aDEuMzN2NS45Wk0yMDguMDQ0MiwxMzAuMjU1M2MwLDEuMTc2LS45MjcsMS44MzQtMi4yNDUwMSwxLjgzNC0uOTI3LDAtMS44NTQtLjMxMy0yLjYyNS0uOTZsLjc5My0uOTE3Yy41NTkwMS40NDIsMS4xMjgwMS43MjIsMS44MzIuNzIyLjU0NywwLC44ODItLjIxNS44ODItLjU2MXYtLjAyMWMwLS4zMzQtLjIxMTk5LS40OTYtMS4yMjgtLjc1NS0xLjIyOS0uMzAyLTIuMDIyLS42MjYtMi4wMjItMS44MDF2LS4wMjJjMC0xLjA2OC44OTQtMS43NzksMi4xNDUtMS43NzkuODkzMDEsMCwxLjY0Mi4yNjksMi4yNjcuNzU0bC0uNjkyLjk4MmMtLjUzNy0uMzY3LTEuMDczLS41ODMtMS41ODYtLjU4My0uNTEzOTksMC0uNzgyLjIyNy0uNzgyLjUxOHYuMDIyYzAsLjM4OC4yNTY5OS41MTgsMS4zMTc5OS43NzYsMS4yNTEwMS4zMTMsMS45NDMwMS43NDUsMS45NDMwMSwxLjc2OXYuMDIyWk0yMDYuMzE5MiwxMzkuNTUxM2MwLDEuNzkxLTEuMDM5LDIuNjY0LTIuNjgxLDIuNjY0cy0yLjY0Ny0uODg0LTIuNjM2LTIuNjIxdi0zLjM3NmgxLjM0djMuMzQ0YzAsLjk2LjUwMzAxLDEuNDU2LDEuMzE5LDEuNDU2LjgxNSwwLDEuMzE3LS40NzQsMS4zMTctMS40MTN2LTMuMzg3aDEuMzQxdjMuMzMzWk0xOTguNDk0MiwxMzIuMDAyM2gtNC42NTh2LTUuODk5aDQuNjEzMDF2MS4xNTNoLTMuMjcydjEuMTk4aDIuODgydjEuMTU0aC0yLjg4MnYxLjI0aDMuMzE3djEuMTU0Wk0xOTcuODk3MiwxMzkuMTc0M2MwLDEuNjgzLTEuMzc0MDEsMy4wNTItMy4yNjIwMSwzLjA1Mi0xLjg4Njk5LDAtMy4yMzktMS4zNTktMy4yMzktMy4wNTJ2LS4wMTFjMC0xLjY4MywxLjM3NDAxLTMuMDUyLDMuMjYyMDEtMy4wNTIsMS44ODY5OSwwLDMuMjM5LDEuMzU5LDMuMjM5LDMuMDQxdi4wMjJaTTE4Ni4zMjUyLDE0Mi4yMjYzYy0xLjc5OCwwLTMuMTM4OTktMS4zMzctMy4xMjc5OS0zLjA2M3YtLjAxMWMwLTEuNjgyLDEuMzA2OTktMy4wNTIsMy4xODM5OS0zLjA1MiwxLjE1MDAxLDAsMS44NDMuMzc3LDIuNDEzMDEuOTE2bC0uODYxMDEuOTVjLS40Njg5OS0uNDEtLjk0OTAxLS42NjktMS41NjMtLjY2OS0xLjAzODk5LDAtMS43NzYuODMtMS43NzYsMS44NDR2LjAyMmMwLDEuMDE0LjcyNjAxLDEuODU1LDEuNzc2LDEuODU1LjcwMywwLDEuMTI4MDEtLjI2OSwxLjYwOC0uNjlsLjg2Ljg0MWMtLjYzNjk5LjY0Ny0xLjMyODk5LDEuMDU3LTIuNTEzLDEuMDU3TTE4My4wOTEyLDEyNi4wOTIzaDIuMzljMS45MjIsMCwzLjI1MDk5LDEuMjcyLDMuMjUwOTksMi45MzN2LjAyMmMwLDEuNjYxLTEuMzI4OTksMi45NTUtMy4yNTA5OSwyLjk1NWgtMi4zOXYtNS45MVpNMTgzLjI5MDE5LDExNS45NzUzaDUuMDcxMDF2MS4xOTdoLTEuODY1MDF2NC43MDNoLTEuMzR2LTQuNzAzaC0xLjg2NjAxdi0xLjE5N1pNMTkyLjQ3MjIsMTE1Ljk3NTNoMS4zNHYzLjM0NGMwLC45Ni40OTIsMS40NTYsMS4zMTgwMSwxLjQ1Ni44MTU5OSwwLDEuMzE3OTktLjQ3NSwxLjMxNzk5LTEuNDEzdi0zLjM4N2gxLjM0MXYzLjMzM2MwLDEuNzktMS4wMzksMi42NjQtMi42ODEsMi42NjRzLTIuNjQ3LS44ODQtMi42MzYtMi42MjF2LTMuMzc2Wk0yMDIuNDM1MiwxMTUuOTc1M2gyLjc5M2MuNzgyLDAsMS4zODQ5OS4yMDUsMS43ODcuNTkzLjM0NjAxLjMyNC41MjQ5OS43ODguNTI0OTksMS4zNDl2LjAxYzAsLjk2LS41MjQ5OSwxLjU1NC0xLjMwNjk5LDEuODM0bDEuNDk2OTksMi4xMTRoLTEuNTc1bC0xLjMwNjk5LTEuODg4aC0xLjA2MXYxLjg4OGgtMS4zNTIwMXYtNS45Wk0xNjMuODMyMiwxMDQuNzE2M3YzOC44OGgtNS45MnYtMzguODhoLTYzLjYyM3YyMy4zMTdsMTAuOTI0LTExLjM1N2g3LjE0OWwtMTAuOTU4LDExLjAyMywxMS40NiwxNC45NThoLTcuMTE1bC04LjM0NC0xMS4wNjUtMy4xMTYsMy4xMTd2Ny45NDhoLTUuOTJ2LTM3Ljk0MWgtNDEuMDI3bC0xNS45NzMsMzguMTI1aC01LjIyNzAxbC0xMC44NzktMjYuMTc1aDYuNTM0bDcuMDM3LDE4LjMwMiwxMi4xNTMtMzAuMjYzSC4zNjIydjQ3LjgzMWg0NC4wOTlsMTUuNjM3LTM2LjA1NGg1LjQ2MmwxMS41MzksMjYuMTc1aC02LjE4OGwtMi40NTgtNS44MjRoLTExLjM5MzAxbC02LjU3ODk5LDE1LjcxNGg3My4zNzM5OXYtMzUuODcxaDIwLjQ5NzAxdjUuMTk5aC0xNC41NjV2NS41MzNoMTIuODQ1djUuMTk4aC0xMi44NDV2MTkuOTUyaDEyNS42ODIwMXYtNDcuODQyaC05MS42MzcwMVoiPjwvcGF0aD48L2c+PC9nPjwvc3ZnPiA=" alt="TDC">
+</div>
+
+<div id="ticker">
+  <div id="tick-track">
+    <span class="tt">Urban Future 2027 Istanbul</span><span class="sep">🧿</span>
+    <span class="tt">Ready Cities</span><span class="sep">🌊</span>
+    <span class="tt">People-Powered Cities</span><span class="sep">✊</span>
+    <span class="tt">Urban Identity</span><span class="sep">🔥</span>
+    <span class="tt">Send Your Ideas Our Way</span><span class="sep">🧿</span>
+    <span class="tt">Designing Tomorrow Together</span><span class="sep">🏙️</span>
+    <span class="tt">A Multidisciplinary Conversation</span><span class="sep">💡</span>
+    <span class="tt">Urban Future 2027 Istanbul</span><span class="sep">🧿</span>
+    <span class="tt">Ready Cities</span><span class="sep">🌊</span>
+    <span class="tt">People-Powered Cities</span><span class="sep">✊</span>
+    <span class="tt">Urban Identity</span><span class="sep">🔥</span>
+    <span class="tt">Send Your Ideas Our Way</span><span class="sep">🧿</span>
+    <span class="tt">Designing Tomorrow Together</span><span class="sep">🏙️</span>
+    <span class="tt">A Multidisciplinary Conversation</span><span class="sep">💡</span>
+  </div>
+</div>
+
+<div id="popup">
+  <div class="pp-top" id="pp-top">
+    <button class="pp-close" id="pp-close">×</button>
+    <span class="pp-emoji" id="pp-emoji"></span>
+    <span class="pp-badge" id="pp-badge"></span>
+    <div class="pp-title"  id="pp-title"></div>
+  </div>
+  <div class="pp-body">
+    <hr class="pp-rule">
+    <p class="pp-desc" id="pp-desc"></p>
+    <div id="pp-conns"></div>
+  </div>
+</div>
+
+<svg id="viz"></svg>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script>
+(function () {
+  const W = window.innerWidth, H = window.innerHeight;
+  const PINK="#ffa5b4", YELLOW="#fff265", TEAL="#a4c7ca", NAVY="#1d364a", WHITE="#FFFFFF";
+
+  // Deterministic tilt per node (-22 to +22 degrees)
+  function tiltFor(id) {
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) & 0xffff;
+    return (h % 45) - 22;
+  }
+
+  // ── NODE DATA ─────────────────────────────────────────────────
+  // Fill per type:  center=NAVY, theme=YELLOW, sub=TEAL, subsub=WHITE, tag=(tiny dot, no big circle)
+  // Text color:     center=WHITE, theme=NAVY,  sub=NAVY,  subsub=NAVY
+  // Emojis on every node (first line)
+  const NODES = [
+    {id:"c",
+     emoji:"", lines:["UF27","İSTANBUL"], type:"center", r:108,
+     title:"🏙️ Urban Future 2027 Istanbul",
+     desc:"How can cities prepare for the future they cannot predict? UF27 explores the questions cities cannot afford to postpone — with Istanbul as a living metropolitan laboratory where past, present and future collide."},
+
+    {id:"t1", emoji:"🌊", lines:["READY","CITIES"],              type:"theme", r:88, cid:0,
+     title:"🌊 Ready Cities",
+     desc:"Every city says it is prepared for disaster, until something actually happens. This theme looks at how cities can prepare, respond and recover, from strong public systems to communities that know how to act when things go wrong."},
+    {id:"t2", emoji:"✊", lines:["PEOPLE-","POWERED","CITIES"],  type:"theme", r:88, cid:1,
+     title:"✊ People-Powered Cities",
+     desc:"Every city has people who see possibilities before they become plans. This theme explores how cities can unlock that energy, help local ideas grow and turn community power into real change."},
+    {id:"t3", emoji:"🔥", lines:["URBAN","IDENTITY"],            type:"theme", r:88, cid:2,
+     title:"🔥 Urban Identity",
+     desc:"What makes some places stand out in a sea of 'best places to live'? Why do some cities attract attention, keep talent, and radiate energy while others fade into the background? This theme will show."},
+
+    // ── READY CITIES sub-themes ───────────────────────────────────
+    {id:"t1a", emoji:"", lines:["Who","Owns","the Risk?"],             type:"sub", r:58, cid:0,
+     title:"Who Owns the Risk?",
+     desc:"Istanbul's pre-1999 building stock is a ticking clock. But retrofitting stalls because ownership is fragmented — landlords, tenants, municipalities all defer the liability. The real question is political economy, not engineering."},
+    {id:"t1b", emoji:"", lines:["AI","Before","the","Alarm","Rings"],  type:"sub", r:58, cid:0,
+     title:"AI Before the Alarm Rings",
+     desc:"Predictive risk mapping using ML and real-time sensors shifts crisis management from reaction to prevention. Who gets protected by the algorithm?"},
+    {id:"t1c", emoji:"", lines:["Trust","Before","the","Tremor"],      type:"sub", r:58, cid:0,
+     title:"Trust Before the Tremor",
+     desc:"Communities with dense social ties survive disasters better. Pre-disaster social capital is the most undervalued form of crisis infrastructure."},
+    {id:"t1d", emoji:"", lines:["Who's In","Charge","at 3am?"],        type:"sub", r:58, cid:0,
+     title:"Who's In Charge at 3am?",
+     desc:"When systems collapse, governance collapses with them. No clear chain of command, competing jurisdictions, and a 3am scenario where nobody is formally in charge."},
+
+    // ── PEOPLE-POWERED CITIES sub-themes ──────────────────────────
+    {id:"t2a", emoji:"", lines:["Who","Trains","the","City's","AI?"],  type:"sub", r:58, cid:1,
+     title:"Who Trains the City's AI?",
+     desc:"Urban AI systems encode priorities. Who gets to shape those priorities — and how does community input become system input, not just consultation theater?"},
+    {id:"t2b", emoji:"", lines:["Residents","Don't Advise.","They Decide."], type:"sub", r:58, cid:1,
+     title:"Residents Don't Advise. They Decide.",
+     desc:"Not surveys, not public meetings after the decision. Genuine co-design means residents set the agenda and hold real veto power — not symbolic participation."},
+    {id:"t2c", emoji:"", lines:["The Mahalle","Didn't Wait","for City Hall"], type:"sub", r:58, cid:1,
+     title:"The Mahalle Didn't Wait for City Hall",
+     desc:"After 1999, informal mutual aid networks outperformed official response. The mahalle (neighborhood) activates faster and reaches deeper than any municipal system."},
+    {id:"t2d", emoji:"", lines:["The Atelier","vs. The","Innovation Hub"], type:"sub", r:58, cid:1,
+     title:"The Atelier vs. The Innovation Hub",
+     desc:"Small ateliers, independent producers, street food innovators — the real creative economy is bottom-up and invisible to policy that only sees innovation districts."},
+
+    // ── URBAN IDENTITY sub-themes ─────────────────────────────────
+    {id:"t3a", emoji:"", lines:["Refuse","a","Smart","Colony"],        type:"sub", r:58, cid:2,
+     title:"Refuse to Be a Smart Colony",
+     desc:"Cities adopt smart infrastructure on terms set by a handful of vendors, surrendering data and long-term independence. Bravery means rejecting extractive tech partnerships."},
+    {id:"t3b", emoji:"", lines:["Istanbul","Is Not","a Metaphor"],     type:"sub", r:58, cid:2,
+     title:"Istanbul Is Not a Metaphor",
+     desc:"Istanbul is perpetually instrumentalized as a symbol — bridge, crossroads, clash of civilizations. This theme asks what it looks like for the city to own its identity rather than perform it for outside audiences."},
+    {id:"t3c", emoji:"", lines:["Justice,","Not Just","Resilience"],   type:"sub", r:58, cid:2,
+     title:"Justice, Not Just Resilience",
+     desc:"'Resilience' means bouncing back to a baseline. But for many Istanbul communities, that baseline was already unjust. Rebuilding the same inequality faster is not recovery."},
+    {id:"t3d", emoji:"", lines:["The","Copyable","City"],              type:"sub", r:58, cid:2,
+     title:"The Copyable City",
+     desc:"When generative AI can synthesize any city's skyline, street texture, and cultural aesthetic on command — what remains distinctively here? What does authentic urban identity mean when everything is reproducible?"},
+    {id:"t3e", emoji:"", lines:["When","Algorithms","Govern","Minds"], type:"sub", r:58, cid:2,
+     title:"When Algorithms Govern Minds",
+     desc:"Filter bubbles, behavioral nudging, attention manipulation — the city's public sphere is shaped by algorithmic logic no citizen voted for."},
+
+    // ── SUBSUB: READY CITIES ──────────────────────────────────────
+    {id:"ss1a1", emoji:"", lines:["Tenure","Lock"],         type:"subsub", r:42, parentId:"t1a",
+     title:"Tenure Lock", desc:"Fragmented ownership in Istanbul's apartment blocks makes coordinated retrofitting legally impossible. When 40 stakeholders must all agree, nobody moves."},
+    {id:"ss1a2", emoji:"", lines:["Liability","Gap"],       type:"subsub", r:42, parentId:"t1a",
+     title:"Liability Gap", desc:"Who bears legal responsibility when a building collapses? The ambiguity between landlords, developers, and municipalities is why retrofit stalls."},
+    {id:"ss1b1", emoji:"", lines:["Who Gets","Warned"],     type:"subsub", r:42, parentId:"t1b",
+     title:"Who Gets Warned", desc:"Early warning systems reach those with smartphones and stable connectivity. Equity in algorithmic risk communication is a governance problem, not a technical one."},
+    {id:"ss1b2", emoji:"", lines:["Sensor","Equity"],       type:"subsub", r:42, parentId:"t1b",
+     title:"Sensor Equity", desc:"Real-time seismic and structural monitoring is concentrated in high-value areas. Who decides where sensors go — and who's flying blind."},
+    {id:"ss1c1", emoji:"", lines:["Social","Capital"],      type:"subsub", r:42, parentId:"t1c",
+     title:"Social Capital", desc:"Dense neighborhood trust networks are measurable, mappable, and the best predictor of survival in the first 72 hours of a major disaster."},
+    {id:"ss1c2", emoji:"", lines:["Trusted","Messengers"],  type:"subsub", r:42, parentId:"t1c",
+     title:"Trusted Messengers", desc:"In a crisis, people follow neighbors, shopkeepers, and religious figures — not official channels. Pre-disaster community leadership is the most underinvested infrastructure."},
+    {id:"ss1d1", emoji:"", lines:["Night","Command"],       type:"subsub", r:42, parentId:"t1d",
+     title:"Night Command", desc:"The authority vacuum in the first hours of a disaster: which institution actually commands, which is legally empowered, and how informal structures fill the gap before the system activates."},
+    {id:"ss1d2", emoji:"", lines:["Legal","Mandate"],       type:"subsub", r:42, parentId:"t1d",
+     title:"Legal Mandate", desc:"Statutory authority in Turkish disaster law overlaps between AFAD, IBB, and local municipalities in ways that produce paralysis, not coordination, when speed matters most."},
+
+    // ── SUBSUB: PEOPLE-POWERED ────────────────────────────────────
+    {id:"ss1",   emoji:"", lines:["Your Data,","Their City"],       type:"subsub", r:42, parentId:"t2a",
+     title:"Your Data, Their City", desc:"Community data trusts as an alternative to platform extraction. The data city residents generate should not become the raw material for systems that govern them without consent."},
+    {id:"ss2",   emoji:"", lines:["Yesterday's","Inequity,","Automated"], type:"subsub", r:42, parentId:"t2a",
+     title:"Yesterday's Inequity, Automated", desc:"When risk maps and permit systems encode historical inequity, the algorithm reproduces injustice at scale — and calls it objective."},
+    {id:"ss2a1", emoji:"", lines:["Community","Veto"],              type:"subsub", r:42, parentId:"t2a",
+     title:"Community Veto", desc:"The right of affected communities to reject algorithmic systems that shape their lives — before deployment, not after harm."},
+    {id:"ss2b1", emoji:"", lines:["Veto","Power"],                  type:"subsub", r:42, parentId:"t2b",
+     title:"Veto Power", desc:"Genuine co-design means residents can stop a project, not just comment on it. What institutional design makes community veto real rather than symbolic?"},
+    {id:"ss2b2", emoji:"", lines:["Paid","Presence"],               type:"subsub", r:42, parentId:"t2b",
+     title:"Paid Presence", desc:"Community participation is unpaid labor. Compensating residents for co-design time is not a cost — it's what separates genuine inclusion from middle-class consultation."},
+    {id:"ss5",   emoji:"", lines:["Mutual Aid","First"],            type:"subsub", r:42, parentId:"t2c",
+     title:"Mutual Aid First", desc:"Informal networks respond before the trucks arrive. How to recognize and resource mutual aid without formalizing it to death."},
+    {id:"ss2c1", emoji:"", lines:["Women","Who Build"],             type:"subsub", r:42, parentId:"t2c",
+     title:"Women Who Build", desc:"After 1999, informal crisis networks in Istanbul neighborhoods were predominantly organized by women — invisible to official response systems and absent from recovery narratives."},
+    {id:"ss2c2", emoji:"", lines:["The","Informal","Map"],          type:"subsub", r:42, parentId:"t2c",
+     title:"The Informal Map", desc:"Mapping what official systems cannot see: the networks, resources, and leaders that exist before any emergency and activate without authorization."},
+    {id:"ss2d1", emoji:"", lines:["After","the","Atelier"],         type:"subsub", r:42, parentId:"t2d",
+     title:"After the Atelier", desc:"Small creative spaces make neighborhoods desirable, then rents rise and makers are priced out. The informal creative economy is the leading edge of gentrification."},
+    {id:"ss2d2", emoji:"", lines:["Creative","Rent"],               type:"subsub", r:42, parentId:"t2d",
+     title:"Creative Rent", desc:"Affordability for makers, musicians, and street producers is not a cultural subsidy — it's urban economic policy. What policy instruments actually protect creative space?"},
+
+    // ── SUBSUB: URBAN IDENTITY ────────────────────────────────────
+    {id:"ss6",   emoji:"", lines:["The Vendor's","Terms"],          type:"subsub", r:42, parentId:"t3a",
+     title:"The Vendor's Terms", desc:"Procurement contracts are where urban sovereignty actually gets surrendered — not in bold policy statements, but in the fine print cities never negotiated."},
+    {id:"ss3a1", emoji:"", lines:["Exit","Clauses"],                type:"subsub", r:42, parentId:"t3a",
+     title:"Exit Clauses", desc:"How do cities escape bad tech contracts? Legal and policy mechanisms for breaking vendor lock-in without destroying services residents depend on."},
+    {id:"ss3a2", emoji:"", lines:["Open Source","City"],            type:"subsub", r:42, parentId:"t3a",
+     title:"Open Source City", desc:"Building urban digital infrastructure on non-proprietary foundations — the municipalities doing it, what works, and what it costs to get off vendor dependency."},
+    {id:"ss3b1", emoji:"", lines:["Tourism","vs.","Belonging"],     type:"subsub", r:42, parentId:"t3b",
+     title:"Tourism vs. Belonging", desc:"When Istanbul's identity is curated for visitors, whose Istanbul is being performed? The tension between city as product and city as home."},
+    {id:"ss3b2", emoji:"", lines:["Narrative","Ownership"],         type:"subsub", r:42, parentId:"t3b",
+     title:"Narrative Ownership", desc:"Who gets to tell Istanbul's story? Media, platforms, tourism boards, and residents are competing narrators with unequal megaphones."},
+    {id:"ss3c1", emoji:"", lines:["Who Is","Owed?"],               type:"subsub", r:42, parentId:"t3c",
+     title:"Who Is Owed?", desc:"Reparative urbanism requires a ledger: which communities were displaced, which public goods were extracted, and what forms of correction are possible now."},
+    {id:"ss3c2", emoji:"", lines:["Corrective","Planning"],         type:"subsub", r:42, parentId:"t3c",
+     title:"Corrective Planning", desc:"Redesigning spatial and economic baselines that were unjust from the start — not restoring the past, but refusing to reproduce its inequities in new development."},
+    {id:"ss3",   emoji:"", lines:["Designed","Fragmentation"],      type:"subsub", r:42, parentId:"t3e",
+     title:"Designed Fragmentation", desc:"Urban information fragmentation is not a bug but a product decision. Platforms designed citizens to live in algorithmically separate worlds — and profit from the division."},
+    {id:"ss4",   emoji:"", lines:["Right to","Be Unread"],          type:"subsub", r:42, parentId:"t3e",
+     title:"The Right to Be Unread", desc:"The right to exist in urban space without being algorithmically legible, scored, or profiled. Connecting Glissant's right to opacity to smart city surveillance."},
+    {id:"ss3d1", emoji:"", lines:["Training","on Our City"],        type:"subsub", r:42, parentId:"t3d",
+     title:"Training on Our City", desc:"When AI models are trained on Istanbul's street photography, architectural archives, and geotagged social media — who owns the aesthetic output?"},
+    {id:"ss3d2", emoji:"", lines:["Image","Rights"],                type:"subsub", r:42, parentId:"t3d",
+     title:"Image Rights", desc:"Aesthetic sovereignty: the claim that a city's visual identity is a collective resource, not raw material for generative AI platforms."},
+    {id:"ss3e1", emoji:"", lines:["Attention","Commons"],           type:"subsub", r:42, parentId:"t3e",
+     title:"Attention Commons", desc:"Public attention is a commons being privatized by platform architectures. Transit screens, social media, and algorithmic feeds are reshaping the urban public sphere without democratic accountability."},
+
+    // Tags — tiny white dot, label BELOW dot, no big circle
+    {id:"tag1",  label:"#ai",             emoji:"🤖", type:"tag", title:"#ai",             desc:"AI and algorithmic systems in urban contexts."},
+    {id:"tag2",  label:"#community",      emoji:"🌐", type:"tag", title:"#community",      desc:"Grassroots power, civic organization, social fabric."},
+    {id:"tag3",  label:"#governance",     emoji:"🏛️", type:"tag", title:"#governance",     desc:"Decision-making structures, authority, institutions."},
+    {id:"tag4",  label:"#istanbul",       emoji:"🕌", type:"tag", title:"#istanbul",       desc:"Istanbul-specific context and local knowledge."},
+    {id:"tag5",  label:"#resilience",     emoji:"💪", type:"tag", title:"#resilience",     desc:"Preparedness, adaptive capacity, recovery."},
+    {id:"tag6",  label:"#housing",        emoji:"🏠", type:"tag", title:"#housing",        desc:"Affordable housing, displacement, urban housing systems."},
+    {id:"tag7",  label:"#mobility",       emoji:"🚇", type:"tag", title:"#mobility",       desc:"Transport systems, accessibility, freedom of movement."},
+    {id:"tag8",  label:"#heritage",       emoji:"🏺", type:"tag", title:"#heritage",       desc:"Cultural memory, historic fabric, intangible heritage."},
+    {id:"tag9",  label:"#participation",  emoji:"🗳️", type:"tag", title:"#participation",  desc:"Civic engagement, co-design, democratic input."},
+    {id:"tag10", label:"#datarights",     emoji:"🔒", type:"tag", title:"#datarights",     desc:"Privacy, surveillance, community data ownership."},
+    {id:"tag11", label:"#climate",        emoji:"🌡️", type:"tag", title:"#climate",        desc:"Climate adaptation, heat, floods, environmental resilience."},
+    {id:"tag12", label:"#youth",          emoji:"🧑", type:"tag", title:"#youth",          desc:"Young people, intergenerational justice, future makers."},
+    {id:"tag13", label:"#culture",        emoji:"🎭", type:"tag", title:"#culture",        desc:"Arts, creative production, cultural identity, placemaking."},
+    {id:"tag14", label:"#equity",         emoji:"⚖️", type:"tag", title:"#equity",         desc:"Justice, inclusion, anti-displacement, reparative action."},
+    {id:"tag15", label:"#infrastructure", emoji:"⚙️", type:"tag", title:"#infrastructure", desc:"Physical systems, networks, urban backbone."},
+    {id:"tag16", label:"#publicspace",    emoji:"🌳", type:"tag", title:"#publicspace",    desc:"Squares, parks, streets — shared spaces of urban life."},
+    {id:"tag17", label:"#water",          emoji:"💧", type:"tag", title:"#water",          desc:"Water management, flood resilience, clean water access."},
+    {id:"tag18", label:"#energy",         emoji:"⚡", type:"tag", title:"#energy",         desc:"Energy transition, distributed grids, community energy."},
+    {id:"tag19", label:"#innovation",     emoji:"💡", type:"tag", title:"#innovation",     desc:"New solutions, experimental governance, urban experimentation."},
+    {id:"tag20", label:"#democracy",      emoji:"🗣️", type:"tag", title:"#democracy",      desc:"Civic participation, electoral systems, democratic institutions."},
+    {id:"tag21", label:"#migration",      emoji:"🚶", type:"tag", title:"#migration",      desc:"Displacement, refugee integration, transnational communities."},
+    {id:"tag22", label:"#informality",    emoji:"🏘️", type:"tag", title:"#informality",    desc:"Informal settlements, unregulated economies, unofficial networks."},
+    {id:"tag23", label:"#food",           emoji:"🍽️", type:"tag", title:"#food",           desc:"Urban food systems, food justice, farm-to-city supply chains."},
+    {id:"tag24", label:"#education",      emoji:"📚", type:"tag", title:"#education",      desc:"Learning environments, knowledge transfer, civic literacy."},
+    {id:"tag25", label:"#health",         emoji:"❤️", type:"tag", title:"#health",         desc:"Urban health, mental wellbeing, access to care, longevity."},
+    {id:"tag26", label:"#art",            emoji:"🎨", type:"tag", title:"#art",            desc:"Art as urban tool — identity-making, community organizing, recovery, and resistance."},
+  ];
+
+  // Tag radius (for collision)
+  NODES.forEach(n => { if (n.type==="tag") n.r = 14; });
+
+  // ── LINKS ─────────────────────────────────────────────────────
+  const LINKS = [
+    {s:"c",t:"t1",k:"main"},{s:"c",t:"t2",k:"main"},{s:"c",t:"t3",k:"main"},
+    {s:"t1",t:"t1a"},{s:"t1",t:"t1b"},{s:"t1",t:"t1c"},{s:"t1",t:"t1d"},
+    {s:"t2",t:"t2a"},{s:"t2",t:"t2b"},{s:"t2",t:"t2c"},{s:"t2",t:"t2d"},
+    {s:"t3",t:"t3a"},{s:"t3",t:"t3b"},{s:"t3",t:"t3c"},{s:"t3",t:"t3d"},{s:"t3",t:"t3e"},
+    {s:"t2a",t:"ss1"},{s:"t2a",t:"ss2"},
+    {s:"t3e",t:"ss3"},{s:"t3e",t:"ss4"},
+    {s:"t2c",t:"ss5"},{s:"t3a",t:"ss6"},
+    {s:"t1a",t:"ss1a1"},{s:"t1a",t:"ss1a2"},
+    {s:"t1b",t:"ss1b1"},{s:"t1b",t:"ss1b2"},
+    {s:"t1c",t:"ss1c1"},{s:"t1c",t:"ss1c2"},
+    {s:"t1d",t:"ss1d1"},{s:"t1d",t:"ss1d2"},
+    {s:"t2a",t:"ss2a1"},
+    {s:"t2b",t:"ss2b1"},{s:"t2b",t:"ss2b2"},
+    {s:"t2c",t:"ss2c1"},{s:"t2c",t:"ss2c2"},
+    {s:"t2d",t:"ss2d1"},{s:"t2d",t:"ss2d2"},
+    {s:"t3a",t:"ss3a1"},{s:"t3a",t:"ss3a2"},
+    {s:"t3b",t:"ss3b1"},{s:"t3b",t:"ss3b2"},
+    {s:"t3c",t:"ss3c1"},{s:"t3c",t:"ss3c2"},
+    {s:"t3d",t:"ss3d1"},{s:"t3d",t:"ss3d2"},
+    {s:"t3e",t:"ss3e1"},
+    // Cross-theme
+    {s:"t1b",t:"t2a",k:"cross"},{s:"t1c",t:"t2c",k:"cross"},
+    {s:"t1d",t:"t3a",k:"cross"},{s:"t3d",t:"t3e",k:"cross"},
+    {s:"t2b",t:"t3c",k:"cross"},{s:"ss1",t:"ss4",k:"cross"},
+    // Tags
+    {s:"tag1",t:"t1b",k:"tag"},{s:"tag1",t:"t2a",k:"tag"},{s:"tag1",t:"t3d",k:"tag"},{s:"tag1",t:"t3e",k:"tag"},{s:"tag1",t:"ss1",k:"tag"},{s:"tag1",t:"ss2",k:"tag"},
+    {s:"tag2",t:"t1c",k:"tag"},{s:"tag2",t:"t2b",k:"tag"},{s:"tag2",t:"t2c",k:"tag"},{s:"tag2",t:"t3b",k:"tag"},{s:"tag2",t:"ss5",k:"tag"},
+    {s:"tag3",t:"t1d",k:"tag"},{s:"tag3",t:"t2a",k:"tag"},{s:"tag3",t:"t3a",k:"tag"},{s:"tag3",t:"ss6",k:"tag"},{s:"tag3",t:"t3e",k:"tag"},
+    {s:"tag4",t:"t1a",k:"tag"},{s:"tag4",t:"t2c",k:"tag"},{s:"tag4",t:"t3b",k:"tag"},{s:"tag4",t:"t1c",k:"tag"},{s:"tag4",t:"t2d",k:"tag"},
+    {s:"tag5",t:"t1a",k:"tag"},{s:"tag5",t:"t1c",k:"tag"},{s:"tag5",t:"t3c",k:"tag"},{s:"tag5",t:"t2c",k:"tag"},{s:"tag5",t:"t1d",k:"tag"},
+    {s:"tag6",t:"t1a",k:"tag"},{s:"tag6",t:"t3c",k:"tag"},{s:"tag6",t:"t2d",k:"tag"},
+    {s:"tag7",t:"t1a",k:"tag"},{s:"tag7",t:"t2d",k:"tag"},{s:"tag7",t:"t2c",k:"tag"},
+    {s:"tag8",t:"t3b",k:"tag"},{s:"tag8",t:"t3c",k:"tag"},{s:"tag8",t:"t3d",k:"tag"},
+    {s:"tag9",t:"t2a",k:"tag"},{s:"tag9",t:"t2b",k:"tag"},{s:"tag9",t:"t1c",k:"tag"},{s:"tag9",t:"t3c",k:"tag"},{s:"tag9",t:"t2c",k:"tag"},
+    {s:"tag10",t:"t2a",k:"tag"},{s:"tag10",t:"t3e",k:"tag"},{s:"tag10",t:"ss1",k:"tag"},{s:"tag10",t:"ss4",k:"tag"},
+    {s:"tag11",t:"t1a",k:"tag"},{s:"tag11",t:"t1b",k:"tag"},{s:"tag11",t:"t1d",k:"tag"},{s:"tag11",t:"t3c",k:"tag"},
+    {s:"tag12",t:"t2d",k:"tag"},{s:"tag12",t:"t3c",k:"tag"},{s:"tag12",t:"t2b",k:"tag"},
+    {s:"tag13",t:"t3b",k:"tag"},{s:"tag13",t:"t3d",k:"tag"},{s:"tag13",t:"t2d",k:"tag"},{s:"tag13",t:"t3c",k:"tag"},
+    {s:"tag14",t:"t3c",k:"tag"},{s:"tag14",t:"t2b",k:"tag"},{s:"tag14",t:"t1c",k:"tag"},{s:"tag14",t:"ss4",k:"tag"},{s:"tag14",t:"t3a",k:"tag"},
+    {s:"tag15",t:"t1a",k:"tag"},{s:"tag15",t:"t2c",k:"tag"},{s:"tag15",t:"ss5",k:"tag"},{s:"tag15",t:"ss6",k:"tag"},
+    {s:"tag16",t:"t2c",k:"tag"},{s:"tag16",t:"t3b",k:"tag"},{s:"tag16",t:"t2b",k:"tag"},{s:"tag16",t:"t3c",k:"tag"},
+    {s:"tag17",t:"t1a",k:"tag"},{s:"tag17",t:"t1d",k:"tag"},{s:"tag17",t:"t2c",k:"tag"},
+    {s:"tag18",t:"t1a",k:"tag"},{s:"tag18",t:"t3a",k:"tag"},{s:"tag18",t:"t2c",k:"tag"},
+    {s:"tag19",t:"t1b",k:"tag"},{s:"tag19",t:"t2a",k:"tag"},{s:"tag19",t:"t3a",k:"tag"},{s:"tag19",t:"t2d",k:"tag"},
+    {s:"tag20",t:"t2b",k:"tag"},{s:"tag20",t:"t3a",k:"tag"},{s:"tag20",t:"t1d",k:"tag"},
+    {s:"tag21",t:"t1c",k:"tag"},{s:"tag21",t:"t3c",k:"tag"},{s:"tag21",t:"t2b",k:"tag"},
+    {s:"tag22",t:"t2c",k:"tag"},{s:"tag22",t:"t1a",k:"tag"},{s:"tag22",t:"t3c",k:"tag"},
+    {s:"tag23",t:"t2d",k:"tag"},{s:"tag23",t:"t2c",k:"tag"},{s:"tag23",t:"t3b",k:"tag"},
+    {s:"tag24",t:"t2b",k:"tag"},{s:"tag24",t:"t2d",k:"tag"},{s:"tag24",t:"t3c",k:"tag"},
+    {s:"tag25",t:"t1c",k:"tag"},{s:"tag25",t:"t2c",k:"tag"},{s:"tag25",t:"t3c",k:"tag"},{s:"tag25",t:"t1a",k:"tag"},
+    {s:"tag26",t:"t1a",k:"tag"},{s:"tag26",t:"t1d",k:"tag"},{s:"tag26",t:"t2b",k:"tag"},{s:"tag26",t:"t1c",k:"tag"},{s:"tag26",t:"t3e",k:"tag"},{s:"tag26",t:"t3b",k:"tag"},
+    // subsub tag links
+    {s:"tag6",t:"ss1a1",k:"tag"},{s:"tag14",t:"ss1a1",k:"tag"},{s:"tag4",t:"ss1a1",k:"tag"},
+    {s:"tag3",t:"ss1a2",k:"tag"},{s:"tag14",t:"ss1a2",k:"tag"},{s:"tag5",t:"ss1a2",k:"tag"},
+    {s:"tag14",t:"ss1b1",k:"tag"},{s:"tag10",t:"ss1b1",k:"tag"},{s:"tag1",t:"ss1b1",k:"tag"},
+    {s:"tag1",t:"ss1b2",k:"tag"},{s:"tag10",t:"ss1b2",k:"tag"},{s:"tag14",t:"ss1b2",k:"tag"},
+    {s:"tag2",t:"ss1c1",k:"tag"},{s:"tag9",t:"ss1c1",k:"tag"},
+    {s:"tag2",t:"ss1c2",k:"tag"},{s:"tag3",t:"ss1c2",k:"tag"},
+    {s:"tag3",t:"ss1d1",k:"tag"},{s:"tag15",t:"ss1d1",k:"tag"},
+    {s:"tag3",t:"ss1d2",k:"tag"},{s:"tag20",t:"ss1d2",k:"tag"},
+    {s:"tag9",t:"ss2a1",k:"tag"},{s:"tag20",t:"ss2a1",k:"tag"},{s:"tag2",t:"ss2a1",k:"tag"},
+    {s:"tag9",t:"ss2b1",k:"tag"},{s:"tag20",t:"ss2b1",k:"tag"},
+    {s:"tag2",t:"ss2b2",k:"tag"},{s:"tag12",t:"ss2b2",k:"tag"},
+    {s:"tag14",t:"ss2c1",k:"tag"},{s:"tag2",t:"ss2c1",k:"tag"},
+    {s:"tag22",t:"ss2c2",k:"tag"},{s:"tag2",t:"ss2c2",k:"tag"},{s:"tag10",t:"ss2c2",k:"tag"},
+    {s:"tag26",t:"ss2d1",k:"tag"},{s:"tag13",t:"ss2d1",k:"tag"},
+    {s:"tag6",t:"ss2d2",k:"tag"},{s:"tag26",t:"ss2d2",k:"tag"},{s:"tag12",t:"ss2d2",k:"tag"},
+    {s:"tag3",t:"ss3a1",k:"tag"},{s:"tag19",t:"ss3a1",k:"tag"},
+    {s:"tag19",t:"ss3a2",k:"tag"},{s:"tag3",t:"ss3a2",k:"tag"},{s:"tag10",t:"ss3a2",k:"tag"},
+    {s:"tag13",t:"ss3b1",k:"tag"},{s:"tag8",t:"ss3b1",k:"tag"},{s:"tag14",t:"ss3b1",k:"tag"},
+    {s:"tag13",t:"ss3b2",k:"tag"},{s:"tag8",t:"ss3b2",k:"tag"},{s:"tag26",t:"ss3b2",k:"tag"},
+    {s:"tag14",t:"ss3c1",k:"tag"},{s:"tag6",t:"ss3c1",k:"tag"},
+    {s:"tag14",t:"ss3c2",k:"tag"},{s:"tag16",t:"ss3c2",k:"tag"},
+    {s:"tag24",t:"ss3d1",k:"tag"},{s:"tag10",t:"ss3d1",k:"tag"},{s:"tag1",t:"ss3d1",k:"tag"},
+    {s:"tag10",t:"ss3d2",k:"tag"},{s:"tag1",t:"ss3d2",k:"tag"},
+    {s:"tag16",t:"ss3e1",k:"tag"},{s:"tag10",t:"ss3e1",k:"tag"},{s:"tag1",t:"ss3e1",k:"tag"},
+  ];
+
+  // ── ADJACENCY ─────────────────────────────────────────────────
+  const nodeMap = {};
+  NODES.forEach(n => nodeMap[n.id] = n);
+  const adj = {};
+  NODES.forEach(n => adj[n.id] = []);
+  LINKS.forEach(l => { adj[l.s].push(l.t); adj[l.t].push(l.s); });
+
+  // ── INITIAL POSITIONS ─────────────────────────────────────────
+  const CR = Math.min(W,H) * 0.27;
+  const clusters = [0,1,2].map(i => ({
+    x: W/2 + CR * Math.cos(-Math.PI/2 + i*2*Math.PI/3),
+    y: H/2 + CR * Math.sin(-Math.PI/2 + i*2*Math.PI/3),
+  }));
+
+  const nodes = NODES.map(d => {
+    const n = {...d};
+    if (n.type==="center") { n.x=W/2; n.y=H/2; }
+    else if (n.type==="tag") { n.x=W/2+(Math.random()-.5)*CR*.65; n.y=H/2+(Math.random()-.5)*CR*.65; }
+    else if (n.type==="subsub") {
+      const c = clusters[nodeMap[n.parentId]?.cid ?? 0];
+      n.x=c.x+(Math.random()-.5)*70; n.y=c.y+(Math.random()-.5)*70;
+    } else {
+      const c = clusters[n.cid];
+      const sp = n.type==="theme" ? 10 : 70;
+      n.x=c.x+(Math.random()-.5)*sp; n.y=c.y+(Math.random()-.5)*sp;
+    }
+    return n;
+  });
+  const links = LINKS.map(d => ({source:d.s, target:d.t, k:d.k||"sub"}));
+
+  // Drift params per node — gentle sinusoidal float
+  const DRIFT_AMP = {center:1.5, theme:4, sub:3, subsub:2.5, tag:2};
+  nodes.forEach(n => {
+    const a = DRIFT_AMP[n.type] || 2;
+    n._dax = (0.6 + Math.random() * 0.4) * a;
+    n._day = (0.6 + Math.random() * 0.4) * a * 1.2;
+    n._dpx = Math.random() * Math.PI * 2;
+    n._dpy = Math.random() * Math.PI * 2;
+    n._dsx = 0.28 + Math.random() * 0.18;   // rad/s → period ~20-35s
+    n._dsy = 0.22 + Math.random() * 0.14;
+    n._ox  = 0; n._oy = 0;                   // current offset (updated in runAnim)
+  });
+
+  // ── SVG + ZOOM ────────────────────────────────────────────────
+  const svg = d3.select("#viz");
+  const container = svg.append("g");
+  const zoom = d3.zoom().scaleExtent([0.08,6])
+    .on("zoom", e => container.attr("transform", e.transform));
+  svg.call(zoom).on("dblclick.zoom",null);
+  svg.on("click", closePopup);
+
+  // ── SIMULATION ────────────────────────────────────────────────
+  const clusterForce = alpha => {
+    nodes.forEach(d => {
+      if (d.type==="center"||d.type==="tag") return;
+      const cid = d.cid!==undefined ? d.cid : (nodeMap[d.parentId]?.cid??0);
+      const c = clusters[cid];
+      const k = (d.type==="theme"?.14:d.type==="subsub"?.09:.06)*alpha;
+      d.vx+=(c.x-d.x)*k; d.vy+=(c.y-d.y)*k;
+    });
+  };
+
+  const sim = d3.forceSimulation(nodes)
+    .alphaDecay(0.006).velocityDecay(0.22)
+    .force("link", d3.forceLink(links).id(d=>d.id)
+      .distance(d =>
+        d.k==="main"?CR*.85:d.k==="cross"?105:d.k==="tag"?138:
+        (d.source.type==="sub"&&d.target.type==="subsub")?62:88)
+      .strength(d =>
+        d.k==="main"?.44:d.k==="cross"?.06:d.k==="tag"?.04:.52))
+    .force("charge", d3.forceManyBody().strength(d =>
+      d.type==="center"?-5000:d.type==="theme"?-2200:
+      d.type==="tag"?-280:d.type==="subsub"?-320:-900))
+    .force("center", d3.forceCenter(W/2,H/2).strength(.022))
+    .force("cluster", clusterForce)
+    .force("collide", d3.forceCollide().radius(d =>
+      d.type==="center"?135:d.type==="theme"?112:d.type==="sub"?80:
+      d.type==="subsub"?62:d.type==="tag"?42:40).strength(.82));
+
+  setInterval(()=>sim.alpha(.04).restart(), 14000);
+
+  // ── LINKS ─────────────────────────────────────────────────────
+  const linkEl = container.append("g").selectAll("line")
+    .data(links).join("line")
+    .attr("stroke", d =>
+      d.k==="main"   ? "rgba(29,54,74,.75)" :
+      d.k==="cross"  ? "rgba(29,54,74,.5)" :
+      d.k==="tag"    ? "rgba(29,54,74,.25)" :
+                       "rgba(29,54,74,.5)")
+    .attr("stroke-width", d =>
+      d.k==="main"?2.2:d.k==="cross"?1.3:d.k==="tag"?.7:1.2)
+    .attr("stroke-linecap","round")
+    .attr("opacity",0);
+
+  // ── NODE GROUPS ───────────────────────────────────────────────
+  // outer = position (translate)
+  const nodeOuter = container.append("g").selectAll("g.nout")
+    .data(nodes).join("g").attr("class","nout node")
+    .call(d3.drag()
+      .on("start",(e,d)=>{e.sourceEvent.stopPropagation();if(!e.active)sim.alphaTarget(.3).restart();d.fx=d.x;d.fy=d.y;})
+      .on("drag",(e,d)=>{d.fx=e.x;d.fy=e.y;})
+      .on("end",(e,d)=>{if(!e.active)sim.alphaTarget(0);d.fx=null;d.fy=null;}))
+    .on("click",(e,d)=>{e.stopPropagation();openPopup(d);panTo(d);});
+
+  // inner = scale animation (starts at 0)
+  const nodeInner = nodeOuter.append("g").attr("class","ninn")
+    .attr("transform","scale(0)").attr("opacity",0);
+
+  // Fill per type
+  const FILL_MAP = {center:NAVY, theme:YELLOW, sub:WHITE, subsub:PINK, tag:WHITE};
+  const TEXT_MAP = {center:WHITE, theme:NAVY, sub:NAVY, subsub:NAVY, tag:NAVY};
+
+  // Font sizes [emoji, text] per type
+  const FS = {
+    center:  [34, 26],
+    theme:   [28, 22],
+    sub:     [21, 13],
+    subsub:  [17, 13],
+    tag:     [12, 11.0],
+  };
+  const LH = {center:30, theme:22, sub:18, subsub:16, tag:11};
+
+  nodeInner.each(function(d) {
+    const g = d3.select(this);
+    const [efs, tfs] = FS[d.type]||[13,9];
+    const lh = LH[d.type]||12;
+    const fc = FILL_MAP[d.type]||WHITE;
+    const tc = TEXT_MAP[d.type]||NAVY;
+    const tilt = tiltFor(d.id);
+
+    if (d.type === "tag") {
+      const tg = g.append("g").attr("transform", `rotate(${tiltFor(d.id)})`);
+      // Tag = tiny dark dot (r=5) + label below, no big circle
+      tg.append("circle")
+        .attr("r", 7)
+        .attr("fill", NAVY)
+        .attr("stroke","none");
+      // Label below dot
+      tg.append("text")
+        .attr("text-anchor","middle")
+        .attr("dominant-baseline","hanging")
+        .attr("y", 8)
+        .attr("fill", NAVY)
+        .attr("font-size","11px")
+        .attr("font-weight","700")
+        .attr("letter-spacing","0.1em")
+        .attr("font-family","Poppins, system-ui, sans-serif")
+        .attr("pointer-events","none")
+        .text(d.label||d.id);
+    } else {
+      // Big circle
+      g.append("circle")
+        .attr("r", d.r)
+        .attr("fill", fc)
+        .attr("stroke","none");
+
+      // Text group, rotated
+      const tg = g.append("g")
+        .attr("transform", `rotate(${tilt})`)
+        .attr("pointer-events","none");
+
+      // emoji always first
+      const textLines = d.lines || [];
+      const allLines = d.emoji ? [d.emoji, ...textLines] : [...textLines];
+      const emojiGap = d.emoji ? 8 : 0;
+      const totalH = (allLines.length - 1) * lh + emojiGap;
+      const startY = -totalH / 2;
+
+      allLines.forEach((line, i) => {
+        const isEmoji = !!(d.emoji && line === d.emoji);
+        const extraY = (i > 0 && d.emoji) ? emojiGap : 0;
+        tg.append("text")
+          .attr("text-anchor","middle")
+          .attr("dominant-baseline","middle")
+          .attr("y", startY + i * lh + extraY)
+          .attr("fill", tc)
+          .attr("font-size", `${isEmoji ? efs : tfs}px`)
+          .attr("font-weight", "700")
+          .attr("letter-spacing", isEmoji ? "0" : "0.1em")
+          .attr("font-family","Poppins, system-ui, sans-serif")
+          .text(isEmoji ? line : line.toUpperCase());
+      });
+
+    }
+  });
+
+  // ── TICK ──────────────────────────────────────────────────────
+  // nodeOuter positions handled in runAnim (with drift); tick only updates sim state
+  sim.on("tick",()=>{
+    // link endpoints updated in runAnim using drifted coords
+  });
+
+  // ── SYNAPSE SIGNAL PARTICLES ──────────────────────────────────
+  // Only main + cross + sub links get particles; tag links skipped
+  const particleG = container.append("g").attr("pointer-events","none");
+  const animLinks = links.filter(l => l.k !== "tag");
+  const particles = animLinks.map((l,i)=>({
+    link:l,
+    phase: (i/animLinks.length)*0.9,
+    speed: 0.28+Math.random()*0.16,
+    startMs: Infinity,   // set after delays are computed
+  }));
+  const particleEl = particleG.selectAll("circle.pt")
+    .data(particles).join("circle")
+    .attr("r", d => d.link.k==="main"?3:d.link.k==="cross"?2.5:2)
+    .attr("fill", NAVY)
+    .attr("opacity",0)
+    .attr("pointer-events","none");
+
+  // Nodes always on top — raise node container above particles
+  d3.select(nodeOuter.node().parentNode).raise();
+
+  let animT = 0;
+  let _pageStart = 0;
+  function runAnim() {
+    animT += 0.004;
+    const now = Date.now() - _pageStart;
+    const sec = now / 1000;
+
+    // ── Gentle float: update each node's drift offset ──
+    nodes.forEach(d => {
+      d._ox = d._dax * Math.sin(sec * d._dsx + d._dpx);
+      d._oy = d._day * Math.sin(sec * d._dsy + d._dpy);
+    });
+    nodeOuter.attr("transform", d => `translate(${d.x + d._ox},${d.y + d._oy})`);
+
+    // ── Links follow drifted node positions ──
+    linkEl
+      .attr("x1", d => d.source.x + d.source._ox)
+      .attr("y1", d => d.source.y + d.source._oy)
+      .attr("x2", d => d.target.x + d.target._ox)
+      .attr("y2", d => d.target.y + d.target._oy);
+
+    // ── Particles follow drifted source/target ──
+    particleEl.each(function(p){
+      if (now < p.startMs) { d3.select(this).attr("opacity",0); return; }
+      const t = (animT * p.speed + p.phase) % 1;
+      const sx = p.link.source.x + p.link.source._ox;
+      const sy = p.link.source.y + p.link.source._oy;
+      const tx = p.link.target.x + p.link.target._ox;
+      const ty = p.link.target.y + p.link.target._oy;
+      const opac = Math.sin(t * Math.PI) * 0.72;
+      d3.select(this).attr("cx",sx+(tx-sx)*t).attr("cy",sy+(ty-sy)*t).attr("opacity",opac);
+    });
+
+    requestAnimationFrame(runAnim);
+  }
+
+  // ── LAYOUT PRE-STABILIZE ─────────────────────────────────────
+  // sim.tick() does NOT dispatch the tick event, so update DOM manually after
+  for (let i=0; i<170; i++) sim.tick();
+  // Initial static positions before runAnim takes over
+  linkEl.attr("x1",d=>d.source.x).attr("y1",d=>d.source.y)
+        .attr("x2",d=>d.target.x).attr("y2",d=>d.target.y);
+  nodeOuter.attr("transform",d=>`translate(${d.x},${d.y})`);
+
+  // Sort & assign entrance delays
+  const TYPE_ORD = {center:0,theme:1,sub:2,subsub:3,tag:4};
+  const sorted = [...nodes].sort((a,b)=>TYPE_ORD[a.type]-TYPE_ORD[b.type]);
+  const BASE_T = {center:100, theme:380, sub:950,  subsub:2300, tag:3000};
+  const STEP_T = {center:0,   theme:220, sub:85,   subsub:85,   tag:48};
+  const tcnt = {};
+  sorted.forEach(d => {
+    const c = tcnt[d.type]||0;
+    d._delay = BASE_T[d.type] + c * STEP_T[d.type];
+    tcnt[d.type] = c+1;
+  });
+
+  const visIds = new Set();
+
+  function startEntrance() {
+    _pageStart = Date.now();
+
+    // Particle start times relative to entrance clock
+    particles.forEach(p => {
+      p.startMs = Math.max(p.link.source._delay||0, p.link.target._delay||0) + 500;
+    });
+
+    sorted.forEach(d => {
+      setTimeout(()=>{
+        visIds.add(d.id);
+        nodeOuter.filter(n=>n.id===d.id).select(".ninn")
+          .transition().duration(400).ease(d3.easeBackOut.overshoot(1.6))
+          .attr("transform","scale(1)").attr("opacity",1);
+        linkEl.filter(l=>{
+          const sid=l.source.id, tid=l.target.id;
+          return (sid===d.id&&visIds.has(tid))||(tid===d.id&&visIds.has(sid));
+        }).transition().duration(300).attr("opacity",1);
+      }, d._delay);
+    });
+
+    runAnim();
+    const lastDelay = Math.max(...sorted.map(d=>d._delay)) + 600;
+    setTimeout(()=>sim.alpha(.08).restart(), lastDelay);
+  }
+
+  startEntrance();
+
+  // ── ZOOM CONTROLS ─────────────────────────────────────────────
+  document.getElementById("zi").onclick=()=>svg.transition().duration(220).call(zoom.scaleBy,1.45);
+  document.getElementById("zo").onclick=()=>svg.transition().duration(220).call(zoom.scaleBy,.70);
+  document.getElementById("zr").onclick=()=>svg.transition().duration(380).call(zoom.transform,d3.zoomIdentity);
+
+  // Swap pink ↔ teal
+  let _swapped = true;
+  document.getElementById("swap").onclick=()=>{
+    _swapped = !_swapped;
+    const bg  = _swapped ? "#a4c7ca" : "#ffa5b4";
+    const sub = _swapped ? "#ffa5b4" : "#a4c7ca";
+    document.body.style.background = bg;
+    // hero-box stays navy always
+    nodeOuter.each(function(d){
+      if(d.type==="sub"){
+        // sub = beyaz on teal, turkuaz on pink
+        d3.select(this).select(".ninn circle").attr("fill", _swapped ? WHITE : TEAL);
+      } else if(d.type==="subsub"){
+        // subsub = pembe on teal, beyaz on pink
+        d3.select(this).select(".ninn circle").attr("fill", _swapped ? PINK : WHITE);
+      }
+    });
+  };
+
+  // ── POPUP ─────────────────────────────────────────────────────
+  const popup   = document.getElementById("popup");
+  const ppBadge = document.getElementById("pp-badge");
+  const ppTitle = document.getElementById("pp-title");
+  const ppDesc  = document.getElementById("pp-desc");
+  const ppConns = document.getElementById("pp-conns");
+
+  const BADGE   = {center:"Event Hub", theme:"Main Theme", sub:"Sub-Theme", subsub:"Deep Theme", tag:"Tag"};
+  const CHIP_C  = {center:"ch-c", theme:"ch-th", sub:"ch-su", subsub:"ch-ss", tag:"ch-ta"};
+
+  // Header bg / text / badge colors per node type
+  const PP_STYLE = {
+    center:  {bg:NAVY,   text:WHITE,  badgeBg:YELLOW, badgeCol:NAVY},
+    theme:   {bg:YELLOW, text:NAVY,   badgeBg:NAVY,   badgeCol:WHITE},
+    sub:     {bg:TEAL,   text:NAVY,   badgeBg:NAVY,   badgeCol:WHITE},
+    subsub:  {bg:PINK,    text:NAVY,   badgeBg:NAVY,   badgeCol:WHITE},
+    tag:     {bg:PINK,   text:NAVY,   badgeBg:NAVY,   badgeCol:WHITE},
+  };
+
+  const ppTop   = document.getElementById("pp-top");
+  const ppEmoji = document.getElementById("pp-emoji");
+
+  function openPopup(d){
+    const s = PP_STYLE[d.type] || PP_STYLE.sub;
+    ppTop.style.background   = s.bg;
+    ppTop.style.color        = s.text;
+
+    ppEmoji.textContent = d.emoji || "";
+    ppEmoji.style.display = d.emoji ? "block" : "none";
+
+    ppBadge.textContent       = BADGE[d.type] || d.type;
+    ppBadge.style.background  = s.badgeBg;
+    ppBadge.style.color       = s.badgeCol;
+
+    ppTitle.textContent = (d.title || d.id).replace(/^[^\s]+\s/, ""); // strip leading emoji from title
+    ppTitle.style.color = s.text;
+
+    ppDesc.textContent = d.desc || "";
+
+    const ids = [...new Set(adj[d.id]||[])];
+    if (!ids.length) { ppConns.innerHTML=""; }
+    else {
+      ppConns.innerHTML =
+        `<div class="pp-sec">Connections (${ids.length})</div><div class="pp-chips">`
+        + ids.map(id=>{
+          const n=nodeMap[id]; if(!n)return"";
+          return `<button class="chip ${CHIP_C[n.type]||"ch-ta"}" data-id="${id}">${n.title||n.id}</button>`;
+        }).join("") + "</div>";
+      ppConns.querySelectorAll(".chip[data-id]").forEach(el=>{
+        el.onclick=e=>{
+          e.stopPropagation();
+          const t=nodes.find(n=>n.id===el.dataset.id);
+          if(t){openPopup(t);panTo(t);}
+        };
+      });
+    }
+    popup.classList.add("open");
+  }
+  function closePopup(){ popup.classList.remove("open"); }
+  document.getElementById("pp-close").onclick=e=>{e.stopPropagation();closePopup();};
+
+  function panTo(d){
+    const t=d3.zoomTransform(svg.node());
+    svg.transition().duration(480).call(zoom.transform,
+      d3.zoomIdentity.translate(W/2-d.x*t.k, H/2-d.y*t.k).scale(t.k));
+  }
+
+  window.addEventListener("resize",()=>{
+    sim.force("center",d3.forceCenter(window.innerWidth/2,window.innerHeight/2).strength(.022));
+    sim.alpha(.3).restart();
+  });
+})();
+</script>
+</body>
+</html>
